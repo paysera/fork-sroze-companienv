@@ -36,7 +36,7 @@
   ],
   "require-dev": {
     "behat/behat": "^3.4",
-    "phpspec/phpspec": "^4.3",
+    "phpspec/phpspec": "^4.3 || ^5.0",
     "composer/composer": "1.0.*@dev"
   }
 }
