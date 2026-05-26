@@ -30,31 +30,16 @@ class Application extends ConsoleApplication
         $this->rootDirectory = $rootDirectory;
         $this->extensions = $extensions !== null ? $extensions : self::defaultExtensions();
 
-        $this->add(new class([$this, 'companion'], 'companion') extends Command {
-            private $callable;
+        $command = new Command('companion');
+        $command->addOption('dist-file', null, InputOption::VALUE_REQUIRED, 'Name of the file used as reference', Application::defaultDistributionFile());
+        $command->addOption('file', null, InputOption::VALUE_REQUIRED, 'Name of the file used for the values', Application::defaultFile());
+        $command->setCode([$this, 'companion']);
 
-            public function __construct(callable $callable, $name)
-            {
-                parent::__construct($name);
-
-                $this->callable = $callable;
-
-                $this->addOption('dist-file', null, InputOption::VALUE_REQUIRED, 'Name of the file used as reference', Application::defaultDistributionFile());
-                $this->addOption('file', null, InputOption::VALUE_REQUIRED, 'Name of the file used for the values', Application::defaultFile());
-            }
-
-            protected function execute(InputInterface $input, OutputInterface $output)
-            {
-                $callable = $this->callable;
-
-                return $callable($input, $output);
-            }
-        });
-        
+        $this->add($command);
         $this->setDefaultCommand('companion', true);
     }
 
-    public function companion(InputInterface $input, OutputInterface $output)
+    public function companion(InputInterface $input, OutputInterface $output): int
     {
         $companion = new Companion(
             new NativePhpFileSystem($this->rootDirectory),
@@ -64,6 +49,8 @@ class Application extends ConsoleApplication
             $input->getOption('dist-file')
         );
         $companion->fillGaps();
+
+        return 0;
     }
 
     public function registerExtension(Extension $extension)
