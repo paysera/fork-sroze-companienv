@@ -13,6 +13,7 @@ use Companienv\IO\FileSystem\NativePhpFileSystem;
 use Companienv\IO\InMemoryInteraction;
 use Companienv\TemporaryDirectory;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class RsaKeysTest extends TestCase
 {
@@ -86,18 +87,23 @@ final class RsaKeysTest extends TestCase
             $values[$variable->getName()] = $extension->getVariableValue($companion, self::block(), $variable);
         }
 
-        $privateKey = openssl_pkey_get_private(file_get_contents($this->temporaryDirectory . '/private.pem'), $passPhrase);
+        $privateKeyPem = file_get_contents($this->temporaryDirectory . '/private.pem');
+        $privateKey = openssl_pkey_get_private($privateKeyPem, $passPhrase);
         $this->assertSame(
             [
                 'values' => ['KEY_PATH' => 'private.pem', 'PUB_PATH' => 'public.pem', 'KEY_PASS' => $passPhrase],
                 'questions' => self::CONFIRMATION . "\n" . self::PASS_PHRASE_QUESTION . "\n",
                 'files' => ['.env.dist', 'private.pem', 'public.pem'],
+                'opens with a wrong pass phrase' => false,
+                'bits' => 4096,
                 'public key' => openssl_pkey_get_details($privateKey)['key'],
             ],
             [
                 'values' => $values,
                 'questions' => $interaction->getBuffer(),
                 'files' => array_keys($this->readTemporaryDirectory()),
+                'opens with a wrong pass phrase' => openssl_pkey_get_private($privateKeyPem, 'wrong-phrase') !== false,
+                'bits' => openssl_pkey_get_details($privateKey)['bits'],
                 'public key' => file_get_contents($this->temporaryDirectory . '/public.pem'),
             ]
         );
@@ -112,6 +118,37 @@ final class RsaKeysTest extends TestCase
             'plain pass phrase' => ['secret-phrase'],
             'pass phrase with spaces and quotes' => ['it\'s my "secret" phrase'],
         ];
+    }
+
+    public function testGenerationFailureKeepsThePassPhraseOutOfTheErrors(): void
+    {
+        $variables = [
+            new Variable('KEY_PATH', 'missing/private.pem'),
+            new Variable('PUB_PATH', 'missing/public.pem'),
+            new Variable('KEY_PASS', ''),
+        ];
+        $block = new Block('Keys', '', $variables, [
+            new Attribute('rsa-pair', ['KEY_PATH', 'PUB_PATH', 'KEY_PASS'], []),
+        ]);
+        $interaction = new InMemoryInteraction([self::CONFIRMATION => 'y', self::PASS_PHRASE_QUESTION => 'secret-phrase']);
+
+        $messages = [];
+        try {
+            (new RsaKeys())->getVariableValue($this->companion($interaction), $block, $variables[0]);
+        } catch (RuntimeException $exception) {
+            for ($error = $exception; $error !== null; $error = $error->getPrevious()) {
+                $messages[] = $error->getMessage();
+            }
+        }
+
+        $this->assertSame(
+            ['first message' => 'Could not have generated the RSA public/private key', 'errors' => 2, 'pass phrase in a message' => false],
+            [
+                'first message' => $messages[0] ?? null,
+                'errors' => count($messages),
+                'pass phrase in a message' => preg_grep('/secret-phrase/', $messages) !== [],
+            ]
+        );
     }
 
     /**

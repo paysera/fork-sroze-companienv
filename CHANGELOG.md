@@ -26,4 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.0 and 1.1 when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
 
+### Security
+- The RSA pass phrase is passed to openssl on standard input instead of the command line.
+
 [0.1.0]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...0.1.0
