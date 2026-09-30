@@ -19,9 +19,8 @@ final class OnlyIfTest extends TestCase
      * @dataProvider conditionDataProvider
      *
      * @param array<string, string> $files
-     * @param string|null $expectedValue
      */
-    public function testCondition(Block $block, array $files, $expectedValue, int $expectedRequirement): void
+    public function testCondition(Block $block, array $files, ?string $expectedValue, int $expectedRequirement): void
     {
         $fileSystem = new InMemoryFileSystem();
         foreach (['.env.dist' => ''] + $files as $path => $contents) {

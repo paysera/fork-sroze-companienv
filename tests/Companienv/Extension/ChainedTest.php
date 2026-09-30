@@ -18,9 +18,8 @@ final class ChainedTest extends TestCase
      * @dataProvider extensionsDataProvider
      *
      * @param list<Extension> $extensions
-     * @param string|null $expectedValue
      */
-    public function testChain(array $extensions, $expectedValue, int $expectedRequirement): void
+    public function testChain(array $extensions, ?string $expectedValue, int $expectedRequirement): void
     {
         $fileSystem = new InMemoryFileSystem();
         $fileSystem->write('.env.dist', '');

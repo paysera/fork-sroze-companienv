@@ -16,9 +16,8 @@ final class CompanionTest extends TestCase
      *
      * @param array<string, string> $files
      * @param array<string, string> $answers
-     * @param string|false $expectedEnv
      */
-    public function testFillGaps(array $files, array $answers, $expectedEnv, string $expectedOutput): void
+    public function testFillGaps(array $files, array $answers, ?string $expectedEnv, string $expectedOutput): void
     {
         $fileSystem = new InMemoryFileSystem();
         foreach ($files as $path => $contents) {
@@ -30,12 +29,12 @@ final class CompanionTest extends TestCase
 
         $this->assertSame(
             ['.env' => $expectedEnv, 'output' => $expectedOutput],
-            ['.env' => $fileSystem->getContents('.env'), 'output' => $interaction->getBuffer()]
+            ['.env' => $fileSystem->exists('.env') ? $fileSystem->getContents('.env') : null, 'output' => $interaction->getBuffer()]
         );
     }
 
     /**
-     * @return array<string, array{0: array<string, string>, 1: array<string, string>, 2: string|false, 3: string}>
+     * @return array<string, array{0: array<string, string>, 1: array<string, string>, 2: string|null, 3: string}>
      */
     public static function fillGapsDataProvider(): array
     {
@@ -104,7 +103,7 @@ final class CompanionTest extends TestCase
             'confirmation declined: nothing is written' => [
                 ['.env.dist' => "MY_VARIABLE=default-value\n"],
                 ["Let's fix this? (y)" => ''],
-                false,
+                null,
                 $missingOne . "\n<comment>I let you think about it then. Re-run the command to get started again.</comment>\n\n",
             ],
         ];

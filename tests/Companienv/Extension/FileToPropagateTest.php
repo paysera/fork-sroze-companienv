@@ -23,16 +23,14 @@ final class FileToPropagateTest extends TestCase
      *
      * @param array<string, string> $files
      * @param array<string, string> $answers
-     * @param string|null $expectedValue
-     * @param string|false $expectedTarget
      */
     public function testGetVariableValue(
         Block $block,
         array $files,
         array $answers,
-        $expectedValue,
+        ?string $expectedValue,
         string $expectedQuestions,
-        $expectedTarget
+        ?string $expectedTarget
     ): void {
         $fileSystem = $this->fileSystem($files);
         $interaction = new InMemoryInteraction($answers);
@@ -48,18 +46,18 @@ final class FileToPropagateTest extends TestCase
             [
                 'value' => $value,
                 'questions' => $interaction->getBuffer(),
-                'target' => $fileSystem->getContents('target.pem'),
+                'target' => $fileSystem->exists('target.pem') ? $fileSystem->getContents('target.pem') : null,
             ]
         );
     }
 
     /**
-     * @return array<string, array{0: Block, 1: array<string, string>, 2: array<string, string>, 3: string|null, 4: string, 5: string|false}>
+     * @return array<string, array{0: Block, 1: array<string, string>, 2: array<string, string>, 3: string|null, 4: string, 5: string|null}>
      */
     public static function propagationDataProvider(): array
     {
         return [
-            'no file-to-propagate attribute' => [new Block('Keys'), [], [], null, '', false],
+            'no file-to-propagate attribute' => [new Block('Keys'), [], [], null, '', null],
             'target present and variable defined: kept' => [
                 self::block(),
                 ['target.pem' => 'CURRENT', '.env' => "KEY_PATH=elsewhere.pem\n"],
