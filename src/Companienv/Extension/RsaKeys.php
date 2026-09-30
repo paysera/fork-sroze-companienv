@@ -23,7 +23,7 @@ class RsaKeys implements Extension
             return null;
         }
 
-        if (isset($this->populatedVariables[$variable->getName()])) {
+        if (array_key_exists($variable->getName(), $this->populatedVariables)) {
             return $this->populatedVariables[$variable->getName()];
         }
 
@@ -34,8 +34,8 @@ class RsaKeys implements Extension
             }, $attribute->getVariableNames()))
         ))) {
             // Ensure we don't ask anymore for this variable pair
-            foreach ($attribute->getVariableNames() as $variable) {
-                $this->populatedVariables[$variable] = null;
+            foreach ($attribute->getVariableNames() as $variableName) {
+                $this->populatedVariables[$variableName] = null;
             }
 
             return null;

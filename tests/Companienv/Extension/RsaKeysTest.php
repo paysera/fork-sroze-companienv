@@ -35,23 +35,34 @@ final class RsaKeysTest extends TestCase
     /**
      * @dataProvider nothingGeneratedDataProvider
      */
-    public function testNothingGenerated(Block $block, array $answers, string $expectedQuestions)
+    public function testNothingGenerated(Block $block, array $answers, array $variableNames, string $expectedQuestions)
     {
         $interaction = new InMemoryInteraction($answers);
+        $companion = $this->companion($interaction);
+        $extension = new RsaKeys();
 
-        $value = (new RsaKeys())->getVariableValue($this->companion($interaction), $block, new Variable('KEY_PATH', 'private.pem'));
+        $values = [];
+        foreach ($variableNames as $name) {
+            $values[$name] = $extension->getVariableValue($companion, $block, $block->getVariable($name));
+        }
 
         $this->assertSame(
-            ['value' => null, 'questions' => $expectedQuestions, 'files' => ['.env.dist']],
-            ['value' => $value, 'questions' => $interaction->getBuffer(), 'files' => array_keys($this->readTemporaryDirectory())]
+            ['values' => array_fill_keys($variableNames, null), 'questions' => $expectedQuestions, 'files' => ['.env.dist']],
+            ['values' => $values, 'questions' => $interaction->getBuffer(), 'files' => array_keys($this->readTemporaryDirectory())]
         );
     }
 
     public static function nothingGeneratedDataProvider(): array
     {
         return [
-            'no rsa-pair attribute' => [new Block('Keys', '', self::variables()), [], ''],
-            'generation declined' => [self::block(), [self::CONFIRMATION => ''], self::CONFIRMATION . "\n"],
+            'no rsa-pair attribute' => [new Block('Keys', '', self::variables()), [], ['KEY_PATH'], ''],
+            'generation declined' => [self::block(), [self::CONFIRMATION => ''], ['KEY_PATH'], self::CONFIRMATION . "\n"],
+            'generation declined, then the rest of the pair' => [
+                self::block(),
+                [self::CONFIRMATION => ''],
+                ['KEY_PATH', 'PUB_PATH', 'KEY_PASS'],
+                self::CONFIRMATION . "\n",
+            ],
         ];
     }
 

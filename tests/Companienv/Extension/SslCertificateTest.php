@@ -35,23 +35,34 @@ final class SslCertificateTest extends TestCase
     /**
      * @dataProvider nothingGeneratedDataProvider
      */
-    public function testNothingGenerated(Block $block, array $answers, string $expectedQuestions)
+    public function testNothingGenerated(Block $block, array $answers, array $variableNames, string $expectedQuestions)
     {
         $interaction = new InMemoryInteraction($answers);
+        $companion = $this->companion($interaction);
+        $extension = new SslCertificate();
 
-        $value = (new SslCertificate())->getVariableValue($this->companion($interaction), $block, new Variable('CERT_KEY_PATH', 'key.pem'));
+        $values = [];
+        foreach ($variableNames as $name) {
+            $values[$name] = $extension->getVariableValue($companion, $block, $block->getVariable($name));
+        }
 
         $this->assertSame(
-            ['value' => null, 'questions' => $expectedQuestions, 'files' => ['.env.dist']],
-            ['value' => $value, 'questions' => $interaction->getBuffer(), 'files' => array_keys($this->readTemporaryDirectory())]
+            ['values' => array_fill_keys($variableNames, null), 'questions' => $expectedQuestions, 'files' => ['.env.dist']],
+            ['values' => $values, 'questions' => $interaction->getBuffer(), 'files' => array_keys($this->readTemporaryDirectory())]
         );
     }
 
     public static function nothingGeneratedDataProvider(): array
     {
         return [
-            'no ssl-certificate attribute' => [new Block('Certificate', '', self::variables()), [], ''],
-            'generation declined' => [self::block(), [self::CONFIRMATION => ''], self::CONFIRMATION . "\n"],
+            'no ssl-certificate attribute' => [new Block('Certificate', '', self::variables()), [], ['CERT_KEY_PATH'], ''],
+            'generation declined' => [self::block(), [self::CONFIRMATION => ''], ['CERT_KEY_PATH'], self::CONFIRMATION . "\n"],
+            'generation declined, then the rest of the pair' => [
+                self::block(),
+                [self::CONFIRMATION => ''],
+                ['CERT_KEY_PATH', 'CERT_PATH', 'CERT_DOMAIN'],
+                self::CONFIRMATION . "\n",
+            ],
         ];
     }
 
