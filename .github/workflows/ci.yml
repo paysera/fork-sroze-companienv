@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Run tests PHP ${{ matrix.php }} Symfony ${{ matrix.symfony }} ${{ matrix.dependency }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+      matrix:
+        php:
+          - '7.0'
+          - '7.1'
+          - '7.2'
+          - '7.3'
+          - '7.4'
+          - '8.0'
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
+          - '8.5'
+        symfony:
+          - '3.*'
+          - '4.*'
+          - '5.*'
+        dependency:
+          - 'lowest'
+          - 'highest'
+        exclude:
+          - { php: '7.0', symfony: '4.*' }
+          - { php: '7.0', symfony: '5.*' }
+          - { php: '7.1', symfony: '5.*' }
+          - { php: '8.4', symfony: '3.*' }
+          - { php: '8.4', symfony: '4.*' }
+          - { php: '8.5', symfony: '3.*' }
+          - { php: '8.5', symfony: '4.*' }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: flex
+
+      - name: Allow packages with security advisories
+        if: matrix.php != '7.0' && matrix.php != '7.1'
+        run: composer config policy.advisories.block false
+
+      - name: Disable the Carbon update-helper plugin
+        run: composer config --no-plugins allow-plugins.kylekatarnls/update-helper false
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v2
+        env:
+          SYMFONY_REQUIRE: ${{ matrix.symfony }}
+        with:
+          dependency-versions: ${{ matrix.dependency }}
+
+      - name: Run phpspec
+        run: vendor/bin/phpspec run
+
+      - name: Run Behat
+        run: vendor/bin/behat -fprogress

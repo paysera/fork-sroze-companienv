@@ -16,9 +16,9 @@
   ],
   "require": {
     "php": ">=7.0",
-    "symfony/console": "~3.0 || ~4.0 || ~5.0",
+    "symfony/console": "~3.4 || ~4.0 || ~5.0",
     "symfony/dotenv": "~3.4 || ~4.0 || ~5.0",
-    "symfony/process": "~3.0 || ~4.0 || ~5.0",
+    "symfony/process": "~3.4 || ~4.0 || ~5.0",
     "jackiedo/dotenv-editor": "~1.0"
   },
   "autoload": {
@@ -36,7 +36,10 @@
   ],
   "require-dev": {
     "behat/behat": "^3.4",
-    "phpspec/phpspec": "^6.1",
+    "behat/gherkin": "<4.13",
+    "phpspec/phpspec": "^4.0 || ^6.1 || ^7.0 || ^8.0",
+    "phpspec/prophecy": "^1.10",
+    "symfony/dependency-injection": "^3.4 || ^4.4 || ^5.0",
     "composer/composer": "1.0.*@dev || 2.0.9"
   }
 }

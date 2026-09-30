@@ -24,7 +24,7 @@ class FeatureContext implements Context
     /**
      * @Given the file :path contains:
      */
-    public function theFileContains($path, PyStringNode $string)
+    public function theFileContains(PyStringNode $string, $path)
     {
         $this->fileSystem->write($path, $string->getRaw());
     }
@@ -49,7 +49,7 @@ class FeatureContext implements Context
     /**
      * @Then the file :path should contain:
      */
-    public function theFileShouldContain($path, PyStringNode $string)
+    public function theFileShouldContain(PyStringNode $string, $path)
     {
         $found = trim($this->fileSystem->getContents($path));
         $expected = trim($string->getRaw());
