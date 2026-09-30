@@ -47,8 +47,8 @@ class RsaKeys implements Extension
         $publicKeyPath = $block->getVariable($publicKeyVariableName = $attribute->getVariableNames()[1])->getValue();
 
         try {
-            (new Process(sprintf('openssl genrsa -out %s -aes256 -passout pass:%s 4096', $fileSystem->realpath($privateKeyPath), $passPhrase)))->mustRun();
-            (new Process(sprintf('openssl rsa -pubout -in %s -out %s -passin pass:%s', $fileSystem->realpath($privateKeyPath), $fileSystem->realpath($publicKeyPath), $passPhrase)))->mustRun();
+            (new Process(['openssl', 'genrsa', '-out', $fileSystem->realpath($privateKeyPath), '-aes256', '-passout', 'pass:'.$passPhrase, '4096']))->mustRun();
+            (new Process(['openssl', 'rsa', '-pubout', '-in', $fileSystem->realpath($privateKeyPath), '-out', $fileSystem->realpath($publicKeyPath), '-passin', 'pass:'.$passPhrase]))->mustRun();
         } catch (ProcessRuntimeException $exception) {
             throw new RuntimeException('Could not have generated the RSA public/private key', $exception->getCode(), $exception);
         }
