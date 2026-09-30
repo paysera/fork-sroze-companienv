@@ -64,6 +64,10 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: flex
 
+      - name: Check for PHP 8.4 deprecations
+        if: matrix.php == '8.4' && matrix.dependency == 'highest'
+        run: find src tests spec features -name '*.php' -print0 | xargs -0 -n1 php -d error_reporting=-1 -d display_errors=1 -l 2>&1 | tee lint.log; ! grep -q Deprecated lint.log
+
       - name: Allow packages with security advisories
         if: matrix.php != '7.1'
         run: composer config policy.advisories.block false
