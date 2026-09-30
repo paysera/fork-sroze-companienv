@@ -95,9 +95,9 @@ class Companion
         $writer->setBuffer($fileContents);
 
         if (isset($variablesInFileHash[$name])) {
-            $writer->updateSetter($name, $value);
+            $writer->updateSetter($name, $value, '');
         } else {
-            $writer->appendSetter($name, $value);
+            $writer->appendSetter($name, $value, '');
         }
 
         $this->fileSystem->write($this->envFileName, $writer->getBuffer());

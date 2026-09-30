@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The `companienv` console command failed on Symfony 5 and later.
 - RSA key and SSL certificate generation failed with `symfony/process` 5 and later.
+- PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.0 and 1.1 when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
 
 [0.1.0]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...0.1.0
