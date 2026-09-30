@@ -40,6 +40,7 @@
     "phpspec/phpspec": "^4.0 || ^6.1 || ^7.0 || ^8.0",
     "phpspec/prophecy": "^1.10",
     "symfony/dependency-injection": "^3.4 || ^4.4 || ^5.0",
-    "composer/composer": "1.0.*@dev || 2.0.9"
+    "composer/composer": "1.0.*@dev || 2.0.9",
+    "phpunit/phpunit": "^7.5.20 || ^8.5.52 || ^9.6.33"
   }
 }

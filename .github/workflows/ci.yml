@@ -68,3 +68,6 @@ jobs:
 
       - name: Run Behat
         run: vendor/bin/behat -fprogress
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
