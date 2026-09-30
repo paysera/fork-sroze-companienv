@@ -23,7 +23,7 @@ class InputOutputInteraction implements Interaction
         return in_array(strtolower($this->ask($question, 'y')), ['y', 'yes']);
     }
 
-    public function ask(string $question, string $default = null) : string
+    public function ask(string $question, ?string $default = null) : string
     {
         $answer = (new QuestionHelper())->ask($this->input, $this->output, new Question($question, $default));
 

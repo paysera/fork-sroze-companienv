@@ -2,6 +2,8 @@
 
 namespace Companienv\IO;
 
+use RuntimeException;
+
 class InMemoryInteraction implements Interaction
 {
     /**
@@ -23,7 +25,7 @@ class InMemoryInteraction implements Interaction
         return (bool) $this->ask($question);
     }
 
-    public function ask(string $question, string $default = null): string
+    public function ask(string $question, ?string $default = null): string
     {
         $normalizedKey = trim(strip_tags($question));
         $this->buffer .= trim(strip_tags($question))."\n";
@@ -32,7 +34,7 @@ class InMemoryInteraction implements Interaction
             return $this->answers[$normalizedKey];
         }
 
-        throw new \RuntimeException(sprintf(
+        throw new RuntimeException(sprintf(
             'No answer for question "%s"',
             $normalizedKey
         ));

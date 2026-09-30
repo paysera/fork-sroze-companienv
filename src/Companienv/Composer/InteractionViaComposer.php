@@ -25,7 +25,7 @@ class InteractionViaComposer implements Interaction
         return $this->io->askConfirmation($question);
     }
 
-    public function ask(string $question, string $default = null): string
+    public function ask(string $question, ?string $default = null): string
     {
         if (!$this->io->isInteractive()) {
             $this->writeln(sprintf('Automatically returned "%s" in non-interactive mode', $default));

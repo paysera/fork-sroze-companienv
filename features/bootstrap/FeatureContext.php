@@ -33,7 +33,7 @@ class FeatureContext implements Context
      * @When I run the companion with the following answers:
      * @When I run the companion
      */
-    public function iRunTheCompanionWithTheFollowingAnswers(TableNode $table = null)
+    public function iRunTheCompanionWithTheFollowingAnswers(?TableNode $table = null)
     {
         $this->companion = new Companion(
             $this->fileSystem,
@@ -55,7 +55,7 @@ class FeatureContext implements Context
         $expected = trim($string->getRaw());
 
         if ($found != $expected) {
-            throw new \RuntimeException(sprintf(
+            throw new RuntimeException(sprintf(
                 'Found following instead: %s',
                 $found
             ));
@@ -71,7 +71,7 @@ class FeatureContext implements Context
         $expected = trim($string->getRaw());
 
         if ($found != $expected) {
-            throw new \RuntimeException(sprintf(
+            throw new RuntimeException(sprintf(
                 'Found the following instead: %s',
                 function_exists('xdiff_string_diff') ? xdiff_string_diff($expected, $found) : $found
             ));
@@ -86,7 +86,7 @@ class FeatureContext implements Context
         $found = strip_tags(trim($this->interaction->getBuffer()));
 
         if (!empty($found)) {
-            throw new \RuntimeException(sprintf(
+            throw new RuntimeException(sprintf(
                 'Found the following instead: %s',
                 $found
             ));

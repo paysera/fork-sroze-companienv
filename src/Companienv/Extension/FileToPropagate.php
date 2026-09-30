@@ -6,6 +6,8 @@ use Companienv\Companion;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
+use InvalidArgumentException;
+use RuntimeException;
 
 class FileToPropagate implements Extension
 {
@@ -28,11 +30,11 @@ class FileToPropagate implements Extension
 
         $downloadedFilePath = $companion->ask('<comment>'.$variable->getName().'</comment>: What is the path of your downloaded file? ');
         if (!$fileSystem->exists($downloadedFilePath, false)) {
-            throw new \InvalidArgumentException(sprintf('The file "%s" does not exist', $downloadedFilePath));
+            throw new InvalidArgumentException(sprintf('The file "%s" does not exist', $downloadedFilePath));
         }
 
         if (false === $fileSystem->write($filename, $fileSystem->getContents($downloadedFilePath, false))) {
-            throw new \RuntimeException(sprintf(
+            throw new RuntimeException(sprintf(
                 'Unable to write into "%s"',
                 $filename
             ));
@@ -44,7 +46,7 @@ class FileToPropagate implements Extension
     /**
      * {@inheritdoc}
      */
-    public function isVariableRequiringValue(Companion $companion, Block $block, Variable $variable, string $currentValue = null) : int
+    public function isVariableRequiringValue(Companion $companion, Block $block, Variable $variable, ?string $currentValue = null) : int
     {
         if (null === ($attribute = $block->getAttribute('file-to-propagate', $variable))) {
             return Extension::ABSTAIN;

@@ -23,7 +23,7 @@ class Application extends ConsoleApplication
     /** @var Extension[] */
     private $extensions = [];
 
-    public function __construct(string $rootDirectory, array $extensions = null)
+    public function __construct(string $rootDirectory, ?array $extensions = null)
     {
         parent::__construct('Companienv', '0.0.x-dev');
 

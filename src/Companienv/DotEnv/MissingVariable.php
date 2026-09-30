@@ -6,7 +6,7 @@ class MissingVariable extends Variable
 {
     private $currentValue;
 
-    public function __construct(Variable $variable, string $currentValue = null)
+    public function __construct(Variable $variable, ?string $currentValue = null)
     {
         parent::__construct($variable->getName(), $variable->getValue());
 

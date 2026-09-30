@@ -9,6 +9,7 @@ use Companienv\DotEnv\ValueFormatter;
 use Companienv\IO\FileSystem\FileSystem;
 use Companienv\IO\Interaction;
 use Jackiedo\DotenvEditor\DotenvWriter;
+use Symfony\Component\Dotenv\Dotenv;
 
 class Companion
 {
@@ -127,7 +128,7 @@ class Companion
     {
         $variablesInFile = [];
         if ($this->fileSystem->exists($this->envFileName)) {
-            $dotEnv = new \Symfony\Component\Dotenv\Dotenv();
+            $dotEnv = new Dotenv();
             $variablesInFile = $dotEnv->parse($this->fileSystem->getContents($this->envFileName), $this->envFileName);
         }
 
@@ -139,7 +140,7 @@ class Companion
         return $this->interaction->askConfirmation($question);
     }
 
-    public function ask(string $question, string $default = null) : string
+    public function ask(string $question, ?string $default = null) : string
     {
         return $this->interaction->ask($question, $default);
     }
