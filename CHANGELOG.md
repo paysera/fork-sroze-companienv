@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - PHP 7.1 or later is required.
 - `symfony/console` and `symfony/process` 3.4 or later are required.
+- `symfony/console` and `symfony/process` 4.4 or later are required on the 4.x line.
 - `jackiedo/dotenv-editor` 1.1.1 or later is required.
 - The development dependencies install on every supported PHP and Symfony version.
 
