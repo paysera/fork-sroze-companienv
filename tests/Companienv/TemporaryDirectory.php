@@ -16,7 +16,7 @@ trait TemporaryDirectory
         return $this->temporaryDirectory;
     }
 
-    private function removeTemporaryDirectory()
+    private function removeTemporaryDirectory(): void
     {
         foreach (array_keys($this->readTemporaryDirectory()) as $name) {
             unlink($this->temporaryDirectory . '/' . $name);
@@ -24,6 +24,9 @@ trait TemporaryDirectory
         rmdir($this->temporaryDirectory);
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function readTemporaryDirectory(): array
     {
         $files = [];

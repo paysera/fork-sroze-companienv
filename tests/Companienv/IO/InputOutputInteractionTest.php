@@ -13,8 +13,11 @@ final class InputOutputInteractionTest extends TestCase
 {
     /**
      * @dataProvider interactionDataProvider
+     *
+     * @param callable(InputOutputInteraction): (bool|string|null) $act
+     * @param bool|string|null $expectedResult
      */
-    public function testInteraction(bool $interactive, string $answers, callable $act, $expectedResult, string $expectedOutput)
+    public function testInteraction(bool $interactive, string $answers, callable $act, $expectedResult, string $expectedOutput): void
     {
         $inputStream = fopen('php://memory', 'r+');
         fwrite($inputStream, $answers);
@@ -33,6 +36,9 @@ final class InputOutputInteractionTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{0: bool, 1: string, 2: callable(InputOutputInteraction): (bool|string|null), 3: bool|string|null, 4: string}>
+     */
     public static function interactionDataProvider(): array
     {
         $confirm = static function (InputOutputInteraction $interaction) {

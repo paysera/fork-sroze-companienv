@@ -13,8 +13,12 @@ final class CompanionTest extends TestCase
 {
     /**
      * @dataProvider fillGapsDataProvider
+     *
+     * @param array<string, string> $files
+     * @param array<string, string> $answers
+     * @param string|false $expectedEnv
      */
-    public function testFillGaps(array $files, array $answers, $expectedEnv, string $expectedOutput)
+    public function testFillGaps(array $files, array $answers, $expectedEnv, string $expectedOutput): void
     {
         $fileSystem = new InMemoryFileSystem();
         foreach ($files as $path => $contents) {
@@ -30,6 +34,9 @@ final class CompanionTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{0: array<string, string>, 1: array<string, string>, 2: string|false, 3: string}>
+     */
     public static function fillGapsDataProvider(): array
     {
         $missingOne = "It looks like you are missing some configuration (1 variables). I will help you to sort this out.\n"
@@ -51,6 +58,15 @@ final class CompanionTest extends TestCase
                 ["Let's fix this? (y)" => 'y', 'A_NEW_VARIABLE ?' => 'value'],
                 "MY_VARIABLE=something-else\nA_NEW_VARIABLE=value\n",
                 $missingOne . "\n<info>Something</info>\n\nA_NEW_VARIABLE ?\n",
+            ],
+            'block without missing variables: skipped' => [
+                [
+                    '.env.dist' => "## Complete\nMY_VARIABLE=default-value\n## Incomplete\nA_NEW_VARIABLE=\n",
+                    '.env' => "MY_VARIABLE=something-else\n",
+                ],
+                ["Let's fix this? (y)" => 'y', 'A_NEW_VARIABLE ?' => 'value'],
+                "MY_VARIABLE=something-else\nA_NEW_VARIABLE=value\n",
+                $missingOne . "\n<info>Incomplete</info>\n\nA_NEW_VARIABLE ?\n",
             ],
             'empty value with a non-empty reference: asked again and updated in place' => [
                 [

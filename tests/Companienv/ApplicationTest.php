@@ -28,8 +28,11 @@ final class ApplicationTest extends TestCase
 
     /**
      * @dataProvider extensionsDataProvider
+     *
+     * @param list<Extension>|null $extensions
+     * @param list<Extension> $registeredExtensions
      */
-    public function testRun(?array $extensions, array $registeredExtensions, string $expectedEnv)
+    public function testRun(?array $extensions, array $registeredExtensions, string $expectedEnv): void
     {
         file_put_contents($this->temporaryDirectory . '/app.dist', "## Something\nMY_VARIABLE=default-value\n");
         $application = new Application($this->temporaryDirectory, $extensions);
@@ -48,15 +51,50 @@ final class ApplicationTest extends TestCase
             [
                 'exit code' => 0,
                 'files' => ['app.dist' => "## Something\nMY_VARIABLE=default-value\n", 'app.env' => $expectedEnv],
-                'output' => "It looks like you are missing some configuration (1 variables). I will help you to sort this out.\n\nSomething\n\n",
+                'output' => "It looks like you are missing some configuration (1 variables). I will help you to sort this out.\n"
+                    . "\nSomething\n\n",
             ],
             ['exit code' => $exitCode, 'files' => $this->readTemporaryDirectory(), 'output' => $output->fetch()]
         );
     }
 
+    public function testCommands(): void
+    {
+        $application = new Application($this->temporaryDirectory);
+
+        $this->assertSame(
+            ['companion' => true, 'help' => true, 'list' => true],
+            [
+                'companion' => $application->has('companion'),
+                'help' => $application->has('help'),
+                'list' => $application->has('list'),
+            ]
+        );
+    }
+
+    public function testNamingAnotherCommandIsRefused(): void
+    {
+        file_put_contents($this->temporaryDirectory . '/.env.dist', "MY_VARIABLE=default-value\n");
+        $application = new Application($this->temporaryDirectory);
+        $application->setAutoExit(false);
+
+        $exitCode = $application->run(
+            new ArrayInput(['command' => 'list', '--no-interaction' => true]),
+            new BufferedOutput()
+        );
+
+        $this->assertSame(
+            ['exit code' => 1, 'files' => ['.env.dist' => "MY_VARIABLE=default-value\n"]],
+            ['exit code' => $exitCode, 'files' => $this->readTemporaryDirectory()]
+        );
+    }
+
+    /**
+     * @return array<string, array{0: list<Extension>|null, 1: list<Extension>, 2: string}>
+     */
     public static function extensionsDataProvider(): array
     {
-        $extension = new class extends AbstractExtension {
+        $extension = new class() extends AbstractExtension {
             public function getVariableValue(Companion $companion, Block $block, Variable $variable)
             {
                 return 'from-extension';
@@ -66,7 +104,11 @@ final class ApplicationTest extends TestCase
         return [
             'default extensions' => [null, [], "MY_VARIABLE=default-value\n"],
             'registered extension asked first' => [null, [$extension], "MY_VARIABLE=from-extension\n"],
-            'extensions given to the constructor' => [[$extension, new AskVariableValues()], [], "MY_VARIABLE=from-extension\n"],
+            'extensions given to the constructor' => [
+                [$extension, new AskVariableValues()],
+                [],
+                "MY_VARIABLE=from-extension\n",
+            ],
         ];
     }
 }

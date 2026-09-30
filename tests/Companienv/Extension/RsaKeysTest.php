@@ -34,8 +34,11 @@ final class RsaKeysTest extends TestCase
 
     /**
      * @dataProvider nothingGeneratedDataProvider
+     *
+     * @param array<string, string> $answers
+     * @param list<string> $variableNames
      */
-    public function testNothingGenerated(Block $block, array $answers, array $variableNames, string $expectedQuestions)
+    public function testNothingGenerated(Block $block, array $answers, array $variableNames, string $expectedQuestions): void
     {
         $interaction = new InMemoryInteraction($answers);
         $companion = $this->companion($interaction);
@@ -52,6 +55,9 @@ final class RsaKeysTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{0: Block, 1: array<string, string>, 2: list<string>, 3: string}>
+     */
     public static function nothingGeneratedDataProvider(): array
     {
         return [
@@ -69,7 +75,7 @@ final class RsaKeysTest extends TestCase
     /**
      * @dataProvider passPhraseDataProvider
      */
-    public function testGeneratedKeyPair(string $passPhrase)
+    public function testGeneratedKeyPair(string $passPhrase): void
     {
         $interaction = new InMemoryInteraction([self::CONFIRMATION => 'y', self::PASS_PHRASE_QUESTION => $passPhrase]);
         $companion = $this->companion($interaction);
@@ -97,6 +103,9 @@ final class RsaKeysTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{0: string}>
+     */
     public static function passPhraseDataProvider(): array
     {
         return [
@@ -107,8 +116,10 @@ final class RsaKeysTest extends TestCase
 
     /**
      * @dataProvider existingFilesDataProvider
+     *
+     * @param list<string> $existingFiles
      */
-    public function testIsVariableRequiringValue(Block $block, array $existingFiles, int $expected)
+    public function testIsVariableRequiringValue(Block $block, array $existingFiles, int $expected): void
     {
         foreach ($existingFiles as $name) {
             touch($this->temporaryDirectory . '/' . $name);
@@ -120,16 +131,23 @@ final class RsaKeysTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{0: Block, 1: list<string>, 2: int}>
+     */
     public static function existingFilesDataProvider(): array
     {
         return [
             'no rsa-pair attribute' => [new Block('Keys', '', self::variables()), [], Extension::ABSTAIN],
             'no key file' => [self::block(), [], Extension::VARIABLE_REQUIRED],
             'only the private key' => [self::block(), ['private.pem'], Extension::VARIABLE_REQUIRED],
+            'only the public key' => [self::block(), ['public.pem'], Extension::VARIABLE_REQUIRED],
             'both key files' => [self::block(), ['private.pem', 'public.pem'], Extension::ABSTAIN],
         ];
     }
 
+    /**
+     * @return list<Variable>
+     */
     private static function variables(): array
     {
         return [new Variable('KEY_PATH', 'private.pem'), new Variable('PUB_PATH', 'public.pem'), new Variable('KEY_PASS', '')];

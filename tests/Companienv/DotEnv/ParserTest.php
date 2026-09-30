@@ -14,11 +14,14 @@ final class ParserTest extends TestCase
     /**
      * @dataProvider distFileDataProvider
      */
-    public function testParse(string $contents, File $expected)
+    public function testParse(string $contents, File $expected): void
     {
         $this->assertEquals($expected, $this->parse($contents));
     }
 
+    /**
+     * @return array<string, array{0: string, 1: File}>
+     */
     public static function distFileDataProvider(): array
     {
         return [
@@ -98,7 +101,7 @@ final class ParserTest extends TestCase
     /**
      * @dataProvider malformedDistFileDataProvider
      */
-    public function testParseRejectsMalformedFile(string $contents, string $exceptionClass, string $message)
+    public function testParseRejectsMalformedFile(string $contents, string $exceptionClass, string $message): void
     {
         $this->expectException($exceptionClass);
         $this->expectExceptionMessage($message);
@@ -106,6 +109,9 @@ final class ParserTest extends TestCase
         $this->parse($contents);
     }
 
+    /**
+     * @return array<string, array{0: string, 1: string, 2: string}>
+     */
     public static function malformedDistFileDataProvider(): array
     {
         return [

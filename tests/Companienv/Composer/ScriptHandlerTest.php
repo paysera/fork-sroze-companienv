@@ -31,8 +31,12 @@ final class ScriptHandlerTest extends TestCase
 
     /**
      * @dataProvider extraDataProvider
+     *
+     * @param array<string, mixed> $extra
+     * @param array<string, string> $files
+     * @param array<string, string> $expectedFiles
      */
-    public function testRun(array $extra, array $files, array $expectedFiles, string $expectedOutput)
+    public function testRun(array $extra, array $files, array $expectedFiles, string $expectedOutput): void
     {
         foreach ($files as $name => $contents) {
             file_put_contents($name, $contents);
@@ -51,6 +55,9 @@ final class ScriptHandlerTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, array{0: array<string, mixed>, 1: array<string, string>, 2: array<string, string>, 3: string}>
+     */
     public static function extraDataProvider(): array
     {
         $distFile = "## Database\nDATABASE_HOST=localhost\nDATABASE_PORT=3306\n";
