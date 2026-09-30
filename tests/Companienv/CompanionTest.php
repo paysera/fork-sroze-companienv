@@ -61,6 +61,12 @@ final class CompanionTest extends TestCase
                 "MY_VARIABLE=my-value\nOTHER_VARIABLE=kept\n",
                 $missingOne . "\nMY_VARIABLE ? (default-value)\n",
             ],
+            'empty value updated with a value containing a dollar and a digit' => [
+                ['.env.dist' => "DB_PASSWORD=secret\n", '.env' => "DB_PASSWORD=\n"],
+                ["Let's fix this? (y)" => 'y', 'DB_PASSWORD ? (secret)' => 'pa$1ss'],
+                'DB_PASSWORD=pa$1ss' . "\n",
+                $missingOne . "\nDB_PASSWORD ? (secret)\n",
+            ],
             'empty value with an empty reference: nothing is asked' => [
                 ['.env.dist' => "EMPTY_VARIABLE=\n", '.env' => "EMPTY_VARIABLE=\n"],
                 [],
