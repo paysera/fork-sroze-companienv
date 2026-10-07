@@ -41,7 +41,9 @@ class InteractionViaComposer implements Interaction
             return $default;
         }
 
-        return $this->io->ask($question, $default);
+        $answer = $this->io->ask($question, $default);
+
+        return null === $answer ? $this->ask($question, $default) : $answer;
     }
 
     public function writeln($messageOrMessages)
