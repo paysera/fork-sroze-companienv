@@ -73,6 +73,20 @@ final class ApplicationTest extends TestCase
         );
     }
 
+    public function testVersion(): void
+    {
+        $application = new Application($this->temporaryDirectory);
+        $application->setAutoExit(false);
+        $output = new BufferedOutput();
+
+        $exitCode = $application->run(new ArrayInput(['--version' => true]), $output);
+
+        $this->assertSame(
+            ['exit code' => 0, 'output' => "Companienv 0.1.x-dev\n"],
+            ['exit code' => $exitCode, 'output' => $output->fetch()]
+        );
+    }
+
     public function testNamingAnotherCommandIsRefused(): void
     {
         file_put_contents($this->temporaryDirectory . '/.env.dist', "MY_VARIABLE=default-value\n");

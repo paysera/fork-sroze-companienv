@@ -25,7 +25,7 @@ class Application extends ConsoleApplication
 
     public function __construct(string $rootDirectory, ?array $extensions = null)
     {
-        parent::__construct('Companienv', '0.0.x-dev');
+        parent::__construct('Companienv', '0.1.x-dev');
 
         $this->rootDirectory = $rootDirectory;
         $this->extensions = $extensions !== null ? $extensions : self::defaultExtensions();
