@@ -104,10 +104,11 @@ final class ApplicationTest extends TestCase
         );
     }
 
-    public function testKeyPairWithoutInteractionStopsAtThePassPhrase(): void
+    /**
+     * @dataProvider generationWithoutInteractionDataProvider
+     */
+    public function testGenerationWithoutInteractionStopsAtTheQuestion(string $distFile, string $expectedMessage): void
     {
-        $distFile = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
-            . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n";
         file_put_contents($this->temporaryDirectory . '/.env.dist', $distFile);
         $application = new Application($this->temporaryDirectory);
         $application->setAutoExit(false);
@@ -121,13 +122,7 @@ final class ApplicationTest extends TestCase
         }
 
         $this->assertSame(
-            [
-                'error' => [
-                    RuntimeException::class => 'Cannot answer "Enter pass phrase to protect the keys:" '
-                        . 'in non-interactive mode: the question has no default.',
-                ],
-                'files' => ['.env.dist' => $distFile],
-            ],
+            ['error' => [RuntimeException::class => $expectedMessage], 'files' => ['.env.dist' => $distFile]],
             ['error' => $error, 'files' => $this->readTemporaryDirectory()]
         );
     }
@@ -151,6 +146,27 @@ final class ApplicationTest extends TestCase
                 [$extension, new AskVariableValues()],
                 [],
                 "MY_VARIABLE=from-extension\n",
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function generationWithoutInteractionDataProvider(): array
+    {
+        return [
+            'rsa-pair' => [
+                "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
+                    . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n",
+                'Cannot answer "Enter pass phrase to protect the keys:" in non-interactive mode: '
+                    . 'the question has no default.',
+            ],
+            'ssl-certificate' => [
+                "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
+                    . "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n",
+                'Cannot answer "Enter the domain name for which to generate the self-signed SSL certificate:" '
+                    . 'in non-interactive mode: the question has no default.',
             ],
         ];
     }
