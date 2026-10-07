@@ -6,6 +6,7 @@ namespace Companienv\Composer;
 
 use Composer\IO\ConsoleIO;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Console\Helper\HelperSet;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -18,7 +19,7 @@ final class InteractionViaComposerTest extends TestCase
      * @dataProvider interactionDataProvider
      *
      * @param callable(InteractionViaComposer): (bool|string|null) $act
-     * @param bool|string|null $expectedResult
+     * @param bool|string|array<string, string>|null $expectedResult
      */
     public function testInteraction(bool $interactive, string $answers, callable $act, $expectedResult, string $expectedOutput): void
     {
@@ -30,7 +31,13 @@ final class InteractionViaComposerTest extends TestCase
         $input->setStream($inputStream);
         $output = new StreamOutput(fopen('php://memory', 'r+'), OutputInterface::VERBOSITY_NORMAL, false);
 
-        $result = $act(new InteractionViaComposer(new ConsoleIO($input, $output, new HelperSet([new QuestionHelper()]))));
+        $io = new ConsoleIO($input, $output, new HelperSet([new QuestionHelper()]));
+
+        try {
+            $result = $act(new InteractionViaComposer($io));
+        } catch (RuntimeException $exception) {
+            $result = [get_class($exception) => $exception->getMessage()];
+        }
 
         rewind($output->getStream());
         $this->assertSame(
@@ -40,7 +47,13 @@ final class InteractionViaComposerTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: bool, 1: string, 2: callable(InteractionViaComposer): (bool|string|null), 3: bool|string|null, 4: string}>
+     * @return array<string, array{
+     *     0: bool,
+     *     1: string,
+     *     2: callable(InteractionViaComposer): (bool|string|null),
+     *     3: bool|string|array<string, string>|null,
+     *     4: string
+     * }>
      */
     public static function interactionDataProvider(): array
     {
@@ -49,6 +62,12 @@ final class InteractionViaComposerTest extends TestCase
         };
         $ask = static function (InteractionViaComposer $interaction) {
             return $interaction->ask('MY_VARIABLE ? ', 'default-value');
+        };
+        $askWithoutDefault = static function (InteractionViaComposer $interaction) {
+            return $interaction->ask('<comment>MY_VARIABLE</comment> ? ');
+        };
+        $askWithEmptyDefault = static function (InteractionViaComposer $interaction) {
+            return $interaction->ask('MY_VARIABLE ? ', '');
         };
 
         return [
@@ -63,6 +82,23 @@ final class InteractionViaComposerTest extends TestCase
                 $ask,
                 'default-value',
                 "Automatically returned \"default-value\" in non-interactive mode\n",
+            ],
+            'non-interactive answer without a default' => [
+                false,
+                '',
+                $askWithoutDefault,
+                [
+                    RuntimeException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
+                        . 'the question has no default.',
+                ],
+                '',
+            ],
+            'non-interactive empty default' => [
+                false,
+                '',
+                $askWithEmptyDefault,
+                '',
+                "Automatically returned \"\" in non-interactive mode\n",
             ],
             'one line written' => [
                 false,

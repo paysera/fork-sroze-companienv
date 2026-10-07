@@ -4,6 +4,7 @@ namespace Companienv\Composer;
 
 use Companienv\IO\Interaction;
 use Composer\IO\IOInterface;
+use RuntimeException;
 
 class InteractionViaComposer implements Interaction
 {
@@ -28,6 +29,13 @@ class InteractionViaComposer implements Interaction
     public function ask(string $question, ?string $default = null): string
     {
         if (!$this->io->isInteractive()) {
+            if (null === $default) {
+                throw new RuntimeException(sprintf(
+                    'Cannot answer "%s" in non-interactive mode: the question has no default.',
+                    trim(strip_tags($question))
+                ));
+            }
+
             $this->writeln(sprintf('Automatically returned "%s" in non-interactive mode', $default));
 
             return $default;

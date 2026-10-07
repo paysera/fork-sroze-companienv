@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Companienv\IO;
 
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Output\StreamOutput;
@@ -15,7 +16,7 @@ final class InputOutputInteractionTest extends TestCase
      * @dataProvider interactionDataProvider
      *
      * @param callable(InputOutputInteraction): (bool|string|null) $act
-     * @param bool|string|null $expectedResult
+     * @param bool|string|array<string, string>|null $expectedResult
      */
     public function testInteraction(bool $interactive, string $answers, callable $act, $expectedResult, string $expectedOutput): void
     {
@@ -27,7 +28,11 @@ final class InputOutputInteractionTest extends TestCase
         $input->setStream($inputStream);
         $output = new StreamOutput(fopen('php://memory', 'r+'), OutputInterface::VERBOSITY_NORMAL, false);
 
-        $result = $act(new InputOutputInteraction($input, $output));
+        try {
+            $result = $act(new InputOutputInteraction($input, $output));
+        } catch (RuntimeException $exception) {
+            $result = [get_class($exception) => $exception->getMessage()];
+        }
 
         rewind($output->getStream());
         $this->assertSame(
@@ -37,7 +42,13 @@ final class InputOutputInteractionTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: bool, 1: string, 2: callable(InputOutputInteraction): (bool|string|null), 3: bool|string|null, 4: string}>
+     * @return array<string, array{
+     *     0: bool,
+     *     1: string,
+     *     2: callable(InputOutputInteraction): (bool|string|null),
+     *     3: bool|string|array<string, string>|null,
+     *     4: string
+     * }>
      */
     public static function interactionDataProvider(): array
     {
@@ -50,12 +61,36 @@ final class InputOutputInteractionTest extends TestCase
         $askFalsy = static function (InputOutputInteraction $interaction) {
             return $interaction->ask('COUNT ? ', '0');
         };
+        $askWithoutDefault = static function (InputOutputInteraction $interaction) {
+            return $interaction->ask('<comment>MY_VARIABLE</comment> ? ');
+        };
+        $askWithEmptyDefault = static function (InputOutputInteraction $interaction) {
+            return $interaction->ask('MY_VARIABLE ? ', '');
+        };
 
         return [
             'non-interactive answer' => [false, '', $ask, 'default-value', ''],
             'non-interactive falsy answer' => [false, '', $askFalsy, '0', ''],
+            'non-interactive answer without a default' => [
+                false,
+                '',
+                $askWithoutDefault,
+                [
+                    RuntimeException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
+                        . 'the question has no default.',
+                ],
+                '',
+            ],
+            'non-interactive empty default' => [false, '', $askWithEmptyDefault, '', ''],
             'interactive answer' => [true, "my-value\n", $ask, 'my-value', 'MY_VARIABLE ? '],
             'interactive empty answer' => [true, "\n", $ask, 'default-value', 'MY_VARIABLE ? '],
+            'interactive answer after an empty one without a default' => [
+                true,
+                "\nmy-value\n",
+                $askWithoutDefault,
+                'my-value',
+                'MY_VARIABLE ? MY_VARIABLE ? ',
+            ],
             'non-interactive confirmation' => [false, '', $confirm, true, ''],
             'interactive confirmation with y' => [true, "y\n", $confirm, true, "Let's fix this? (y) "],
             'interactive confirmation with YES' => [true, "YES\n", $confirm, true, "Let's fix this? (y) "],

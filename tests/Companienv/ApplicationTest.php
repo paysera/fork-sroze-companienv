@@ -9,6 +9,7 @@ use Companienv\DotEnv\Variable;
 use Companienv\Extension\AbstractExtension;
 use Companienv\Interaction\AskVariableValues;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -86,6 +87,34 @@ final class ApplicationTest extends TestCase
         $this->assertSame(
             ['exit code' => 1, 'files' => ['.env.dist' => "MY_VARIABLE=default-value\n"]],
             ['exit code' => $exitCode, 'files' => $this->readTemporaryDirectory()]
+        );
+    }
+
+    public function testKeyPairWithoutInteractionStopsAtThePassPhrase(): void
+    {
+        $distFile = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
+            . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n";
+        file_put_contents($this->temporaryDirectory . '/.env.dist', $distFile);
+        $application = new Application($this->temporaryDirectory);
+        $application->setAutoExit(false);
+        $application->setCatchExceptions(false);
+
+        $error = [];
+        try {
+            $application->run(new ArrayInput(['--no-interaction' => true]), new BufferedOutput());
+        } catch (RuntimeException $exception) {
+            $error = [get_class($exception) => $exception->getMessage()];
+        }
+
+        $this->assertSame(
+            [
+                'error' => [
+                    RuntimeException::class => 'Cannot answer "Enter pass phrase to protect the keys:" '
+                        . 'in non-interactive mode: the question has no default.',
+                ],
+                'files' => ['.env.dist' => $distFile],
+            ],
+            ['error' => $error, 'files' => $this->readTemporaryDirectory()]
         );
     }
 
