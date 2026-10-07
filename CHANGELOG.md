@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PHP 8.4 deprecations for implicitly nullable parameters.
 
 ### Security
+- Key paths, the pass phrase and the domain name are no longer interpreted by a shell.
 - The RSA pass phrase is passed to openssl on standard input instead of the command line.
 
 [0.1.0]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...0.1.0
