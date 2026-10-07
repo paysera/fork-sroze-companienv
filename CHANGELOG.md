@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `companienv` console command failed on Symfony 5 and later.
 - RSA key and SSL certificate generation failed with `symfony/process` 5 and later.
 - Declining RSA key or SSL certificate generation asked the same question again for the other variables of the pair.
-- Without interaction, a question with no default (the RSA pass phrase, the SSL domain name, the path of a file to propagate) failed with a `TypeError` in the Composer script and was asked again until PHP ran out of memory in the console command. It now fails with a `RuntimeException` that names the question.
-- Without interaction, the console command asked again until PHP ran out of memory for a variable whose default is empty. It now writes the empty value, as the Composer script does.
+- Without interaction, a question with no default (the RSA pass phrase, the SSL domain name, the path of a file to propagate) failed with a `TypeError` in the Composer script and was asked again without end in the console command. It now fails with a `RuntimeException` that names the question.
+- Without interaction, the console command asked again without end for a variable whose default is empty. It now writes the empty value, as the Composer script does.
 - PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.2.0 and earlier when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
 
