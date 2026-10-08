@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-09-30
+## [Unreleased]
 
 ### Added
 - Support for Symfony 6 and 7.4.
@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - PHP 7.1 or later is required.
-- `symfony/console` and `symfony/process` 3.4 or later are required.
 - `symfony/console` and `symfony/process` 4.4 or later are required on the 4.x line.
 - `jackiedo/dotenv-editor` 1.1.1 or later is required.
 - The development dependencies install on every PHP and Symfony combination the workflow runs.
@@ -34,4 +33,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The domain name is escaped for openssl's subject syntax, so `/`, `+` and `\` in it no longer add subject fields or make openssl fail.
 - The RSA pass phrase is passed to openssl on standard input instead of the command line.
 
-[0.1.0]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...0.1.0
+[Unreleased]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...HEAD
