@@ -88,3 +88,7 @@ jobs:
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit
+
+      - name: Run PHPUnit with every deprecation reported
+        if: matrix.php == '8.4' && matrix.dependency == 'highest' && matrix.symfony == '7.*'
+        run: php -d error_reporting=-1 vendor/bin/phpunit
