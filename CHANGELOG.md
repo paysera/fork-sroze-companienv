@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Key paths, the pass phrase and the domain name are no longer interpreted by a shell.
+- The domain name is escaped for openssl's subject syntax, so `/`, `+` and `\` in it no longer add subject fields or make openssl fail.
 - The RSA pass phrase is passed to openssl on standard input instead of the command line.
 
 [0.1.0]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...0.1.0

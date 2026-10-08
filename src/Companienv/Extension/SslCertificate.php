@@ -50,7 +50,7 @@ class SslCertificate implements Extension
                 'openssl', 'req', '-x509', '-nodes', '-days', '3650', '-newkey', 'rsa:2048',
                 '-keyout', $companion->getFileSystem()->realpath($privateKeyPath),
                 '-out', $companion->getFileSystem()->realpath($certificateKeyPath),
-                '-subj', '/C=SS/ST=SS/L=SelfSignedCity/O=SelfSignedOrg/CN='.$domainName,
+                '-subj', '/C=SS/ST=SS/L=SelfSignedCity/O=SelfSignedOrg/CN='.addcslashes($domainName, '\\/+'),
             ]))->mustRun();
         } catch (ProcessRuntimeException $exception) {
             throw new RuntimeException('Could not have generated the SSL certificate: '.$exception->getMessage(), $exception->getCode(), $exception);

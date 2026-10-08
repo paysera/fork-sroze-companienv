@@ -94,7 +94,7 @@ final class SslCertificateTest extends TestCase
                 'values' => ['CERT_KEY_PATH' => 'key.pem', 'CERT_PATH' => 'certificate.pem', 'CERT_DOMAIN' => $domain],
                 'questions' => self::CONFIRMATION . "\n" . self::DOMAIN_QUESTION . "\n",
                 'files' => ['.env.dist', 'certificate.pem', 'key.pem'],
-                'common name' => $domain,
+                'subject' => ['C' => 'SS', 'ST' => 'SS', 'L' => 'SelfSignedCity', 'O' => 'SelfSignedOrg', 'CN' => $domain],
                 'validity in days' => 3650,
                 'key bits' => 2048,
                 'key matches' => true,
@@ -103,7 +103,7 @@ final class SslCertificateTest extends TestCase
                 'values' => $values,
                 'questions' => $interaction->getBuffer(),
                 'files' => array_keys($this->readTemporaryDirectory()),
-                'common name' => $certificate['subject']['CN'],
+                'subject' => $certificate['subject'],
                 'validity in days' => ($certificate['validTo_time_t'] - $certificate['validFrom_time_t']) / 86400,
                 'key bits' => openssl_pkey_get_details($key)['bits'],
                 'key matches' => openssl_x509_check_private_key(
@@ -122,6 +122,9 @@ final class SslCertificateTest extends TestCase
         return [
             'plain domain' => ['localhost'],
             'domain with spaces and quotes' => ['my "local" site\'s name'],
+            'domain with a slash' => ['example.com/O=Other'],
+            'domain with a plus' => ['a+b'],
+            'domain with a backslash' => ['back\\slash'],
         ];
     }
 
