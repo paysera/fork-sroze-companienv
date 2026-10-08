@@ -84,6 +84,7 @@ final class InputOutputInteractionTest extends TestCase
             'non-interactive empty default' => [false, '', $askWithEmptyDefault, '', ''],
             'interactive answer' => [true, "my-value\n", $ask, 'my-value', 'MY_VARIABLE ? '],
             'interactive empty answer' => [true, "\n", $ask, 'default-value', 'MY_VARIABLE ? '],
+            'interactive empty answer to an empty default' => [true, "\n", $askWithEmptyDefault, '', 'MY_VARIABLE ? '],
             'interactive answer after an empty one without a default' => [
                 true,
                 "\nmy-value\n",

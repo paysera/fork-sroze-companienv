@@ -76,6 +76,7 @@ final class InteractionViaComposerTest extends TestCase
             'non-interactive confirmation' => [false, '', $confirm, true, "Automatically confirmed in non-interactive mode\n"],
             'interactive answer' => [true, "my-value\n", $ask, 'my-value', 'MY_VARIABLE ? '],
             'interactive empty answer' => [true, "\n", $ask, 'default-value', 'MY_VARIABLE ? '],
+            'interactive empty answer to an empty default' => [true, "\n", $askWithEmptyDefault, '', 'MY_VARIABLE ? '],
             'interactive empty answer, then an answer, without a default' => [
                 true,
                 "\nmy-value\n",
