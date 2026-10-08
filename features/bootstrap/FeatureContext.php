@@ -8,7 +8,6 @@ use Companienv\Companion;
 use Companienv\Extension\Chained;
 use Companienv\IO\InMemoryFileSystem;
 use Companienv\IO\InMemoryInteraction;
-use Symfony\Component\Process\Process;
 
 class FeatureContext implements Context
 {
