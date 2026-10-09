@@ -6,6 +6,7 @@ use Companienv\Companion;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
+use Companienv\IO\UnansweredQuestionException;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -22,13 +23,23 @@ class FileToPropagate implements Extension
 
         $definedVariablesHash = $companion->getDefinedVariablesHash();
         $fileSystem = $companion->getFileSystem();
-
-        // If the file exists and seems legit, keep the file.
-        if ($fileSystem->exists($filename = $variable->getValue()) && isset($definedVariablesHash[$variable->getName()])) {
-            return $definedVariablesHash[$variable->getName()];
+        $filename = $this->getFilePath($variable, $definedVariablesHash[$variable->getName()] ?? null);
+        if ('' === $filename) {
+            return null;
         }
 
-        $downloadedFilePath = $companion->ask('<comment>'.$variable->getName().'</comment>: What is the path of your downloaded file? ');
+        if ($fileSystem->exists($filename)) {
+            return $filename;
+        }
+
+        try {
+            $downloadedFilePath = $companion->ask(
+                '<comment>'.$variable->getName().'</comment>: What is the path of your downloaded file? '
+            );
+        } catch (UnansweredQuestionException $exception) {
+            return $filename;
+        }
+
         if (!$fileSystem->exists($downloadedFilePath, false)) {
             throw new InvalidArgumentException(sprintf('The file "%s" does not exist', $downloadedFilePath));
         }
@@ -40,7 +51,7 @@ class FileToPropagate implements Extension
             ));
         }
 
-        return $variable->getValue();
+        return $filename;
     }
 
     /**
@@ -52,8 +63,15 @@ class FileToPropagate implements Extension
             return Extension::ABSTAIN;
         }
 
-        return $companion->getFileSystem()->exists($variable->getValue())
+        $filename = $this->getFilePath($variable, $currentValue);
+
+        return '' === $filename || $companion->getFileSystem()->exists($filename)
              ? Extension::ABSTAIN
              : Extension::VARIABLE_REQUIRED;
+    }
+
+    private function getFilePath(Variable $variable, ?string $currentValue) : string
+    {
+        return (string) ($currentValue ?: $variable->getValue());
     }
 }

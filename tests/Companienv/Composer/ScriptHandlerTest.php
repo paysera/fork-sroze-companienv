@@ -65,6 +65,9 @@ final class ScriptHandlerTest extends TestCase
             . "Automatically confirmed in non-interactive mode\n\nDatabase\n\n"
             . "Automatically returned \"localhost\" in non-interactive mode\n"
             . "Automatically returned \"3306\" in non-interactive mode\n";
+        $propagatedDistFile = "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=key.pem\n";
+        $propagatedOutput = "It looks like you are missing some configuration (1 variables). "
+            . "I will help you to sort this out.\nAutomatically confirmed in non-interactive mode\n\nKeys\n\n";
 
         return [
             'one pair of files' => [
@@ -95,6 +98,18 @@ final class ScriptHandlerTest extends TestCase
                 ['.env.dist' => $distFile],
                 ['.env' => "DATABASE_HOST=localhost\nDATABASE_PORT=3306\n", '.env.dist' => $distFile],
                 $output,
+            ],
+            'file to propagate missing, its variable not set: the reference path is written' => [
+                [],
+                ['.env.dist' => $propagatedDistFile],
+                ['.env' => "KEY_PATH=key.pem\n", '.env.dist' => $propagatedDistFile],
+                $propagatedOutput,
+            ],
+            'file to propagate missing at the path set in .env: .env is left as it is' => [
+                [],
+                ['.env.dist' => $propagatedDistFile, '.env' => "KEY_PATH=custom.pem # from the vault\n"],
+                ['.env' => "KEY_PATH=custom.pem # from the vault\n", '.env.dist' => $propagatedDistFile],
+                $propagatedOutput,
             ],
         ];
     }

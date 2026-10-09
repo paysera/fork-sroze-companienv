@@ -196,6 +196,41 @@ final class CompanionTest extends TestCase
                 "KEY_PATH=target.pem\n",
                 $missingOne . "\n<info>Keys</info>\n\nKEY_PATH: What is the path of your downloaded file?\n",
             ],
+            'file to propagate at the path set in .env: nothing is asked' => [
+                [
+                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=target.pem\n",
+                    '.env' => "KEY_PATH=custom.pem\n",
+                    'custom.pem' => 'CURRENT',
+                ],
+                [],
+                "KEY_PATH=custom.pem\n",
+                '',
+            ],
+            'file to propagate missing at the path set in .env: copied there, .env left as it is' => [
+                [
+                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=target.pem\n",
+                    '.env' => "KEY_PATH=custom.pem # from the vault\n",
+                    '/downloads/key.pem' => 'DOWNLOADED',
+                ],
+                [
+                    "Let's fix this? (y)" => 'y',
+                    'KEY_PATH: What is the path of your downloaded file?' => '/downloads/key.pem',
+                ],
+                "KEY_PATH=custom.pem # from the vault\n",
+                $missingOne . "\n<info>Keys</info>\n\nKEY_PATH: What is the path of your downloaded file?\n",
+            ],
+            'file to propagate without a path: the variable is asked like any other' => [
+                ['.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=\n"],
+                ["Let's fix this? (y)" => 'y', 'KEY_PATH ?' => 'keys/key.pem'],
+                "KEY_PATH=keys/key.pem\n",
+                $missingOne . "\n<info>Keys</info>\n\nKEY_PATH ?\n",
+            ],
+            'file to propagate without a path, empty in .env: nothing is asked' => [
+                ['.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=\n", '.env' => "KEY_PATH=\n"],
+                [],
+                "KEY_PATH=\n",
+                '',
+            ],
             'confirmation declined: nothing is written' => [
                 ['.env.dist' => "MY_VARIABLE=default-value\n"],
                 ["Let's fix this? (y)" => ''],

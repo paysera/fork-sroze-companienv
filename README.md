@@ -89,7 +89,7 @@ will be displayed to the user for a greater understanding of the configuration. 
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 GITHUB_INTEGRATION_ID=
-GITHUB_INTEGRATION_KEY_PATH=
+GITHUB_INTEGRATION_KEY_PATH=/runtime/keys/github.pem
 GITHUB_SECRET=
 
 ## Security
@@ -132,7 +132,9 @@ INTERCOM_APPLICATION_ID=none
 
 ### `file-to-propagate` extension
 
-Will ask the path of an existing file and copy it to the destination mentioned in the reference.
+Will ask the path of an existing file and copy it to the path set in your `.env` file, or to the destination mentioned
+in the reference when your `.env` file does not set one. Both are relative to the root directory of the project. When
+neither sets a path, the variable is asked like any other, and the file is asked for on the next run.
 
 **Example:** this will ask the user to give the path of an existing file. It will copy this file to the path 
              `/runtime/keys/firebase.json`, relative to the root directory of the project.

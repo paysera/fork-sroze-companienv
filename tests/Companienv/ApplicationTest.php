@@ -106,9 +106,12 @@ final class ApplicationTest extends TestCase
     }
 
     /**
-     * @dataProvider generationWithoutInteractionDataProvider
+     * @dataProvider withoutInteractionDataProvider
+     *
+     * @param array<string, string> $expectedError
+     * @param array<string, string> $expectedFiles
      */
-    public function testGenerationWithoutInteractionStopsAtTheQuestion(string $distFile, string $expectedMessage): void
+    public function testRunWithoutInteraction(string $distFile, array $expectedError, array $expectedFiles): void
     {
         file_put_contents($this->temporaryDirectory . '/.env.dist', $distFile);
         $application = new Application($this->temporaryDirectory);
@@ -123,10 +126,7 @@ final class ApplicationTest extends TestCase
         }
 
         $this->assertSame(
-            [
-                'error' => [UnansweredQuestionException::class => $expectedMessage],
-                'files' => ['.env.dist' => $distFile],
-            ],
+            ['error' => $expectedError, 'files' => $expectedFiles],
             ['error' => $error, 'files' => $this->readTemporaryDirectory()]
         );
     }
@@ -155,22 +155,37 @@ final class ApplicationTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: string, 1: string}>
+     * @return array<string, array{0: string, 1: array<string, string>, 2: array<string, string>}>
      */
-    public static function generationWithoutInteractionDataProvider(): array
+    public static function withoutInteractionDataProvider(): array
     {
+        $rsaPair = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
+            . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n";
+        $sslCertificate = "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
+            . "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n";
+        $fileToPropagate = "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=key.pem\n";
+
         return [
             'rsa-pair' => [
-                "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
-                    . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n",
-                'Cannot answer "Enter pass phrase to protect the keys:" in non-interactive mode: '
-                    . 'the question has no default.',
+                $rsaPair,
+                [
+                    UnansweredQuestionException::class => 'Cannot answer "Enter pass phrase to protect the keys:" '
+                        . 'in non-interactive mode: the question has no default.',
+                ],
+                ['.env.dist' => $rsaPair],
             ],
             'ssl-certificate' => [
-                "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
-                    . "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n",
-                'Cannot answer "Enter the domain name for which to generate the self-signed SSL certificate:" '
-                    . 'in non-interactive mode: the question has no default.',
+                $sslCertificate,
+                [
+                    UnansweredQuestionException::class => 'Cannot answer "Enter the domain name for which to generate '
+                        . 'the self-signed SSL certificate:" in non-interactive mode: the question has no default.',
+                ],
+                ['.env.dist' => $sslCertificate],
+            ],
+            'file-to-propagate' => [
+                $fileToPropagate,
+                [],
+                ['.env' => "KEY_PATH=key.pem\n", '.env.dist' => $fileToPropagate],
             ],
         ];
     }

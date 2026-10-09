@@ -18,13 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `jackiedo/dotenv-editor` 1.1.1 or later is required.
 - The development dependencies install on every PHP and Symfony combination the workflow runs.
 - The console command accepts an empty answer to a question whose default is empty, as the Composer script does, instead of asking again.
+- `#+file-to-propagate` looks for the file at the path set in `.env`, or at the `.env.dist` path when `.env` sets none. A file that is there is kept, also when `.env` does not set the variable. A missing one is asked for, also when the variable is set, and copied to that path; without interaction, it stays missing, a path set in `.env` is left as it is and an empty one gets the `.env.dist` path. A variable with no path in either file is asked like any other variable.
 
 ### Fixed
 - The `companienv` console command failed on Symfony 5 and later.
 - RSA key and SSL certificate generation failed with `symfony/process` 5 and later.
 - Declining RSA key or SSL certificate generation asked the same question again for the other variables of the pair.
-- A `#+file-to-propagate` file that existed was reported as missing configuration on every run, and a missing one was not asked for when its variable was already set.
-- Without interaction, a question with no default (the RSA pass phrase, the SSL domain name, the path of a file to propagate) failed with a `TypeError` in the Composer script and was asked again without end in the console command. It now fails with a `Companienv\IO\UnansweredQuestionException`, a `RuntimeException` that names the question.
+- A `#+file-to-propagate` file that existed was reported as missing configuration on every run.
+- Without interaction, a question with no default (the RSA pass phrase, the SSL domain name) failed with a `TypeError` in the Composer script and was asked again without end in the console command. It now fails with a `Companienv\IO\UnansweredQuestionException`, a `RuntimeException` that names the question.
+- Without interaction, a missing `#+file-to-propagate` file whose variable was not set failed with a `TypeError` in the Composer script and was asked for without end in the console command. Its path is now written and the file stays missing.
 - Without interaction, the console command asked again without end for a variable whose default is empty. It now writes the empty value, as the Composer script does.
 - In the Composer script, an empty answer to a question with no default failed with a `TypeError`. The question is now asked again, as the console command does.
 - A value containing whitespace, `#`, a quote or a backslash was written without quotes, so Dotenv could not read the `.env` file or read a different value. Such a value is now written in quotes. A value that is already in quotes is written as it is.

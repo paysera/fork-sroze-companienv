@@ -89,6 +89,9 @@ class Companion
         }
 
         $variablesInFileHash = $this->getDefinedVariablesHash();
+        if (($variablesInFileHash[$name] ?? null) === $value) {
+            return;
+        }
 
         $writer = new DotenvWriter(new ValueFormatter());
         $fileContents = $this->fileSystem->getContents($this->envFileName);
