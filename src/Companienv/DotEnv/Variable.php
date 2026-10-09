@@ -2,6 +2,9 @@
 
 namespace Companienv\DotEnv;
 
+use Symfony\Component\Dotenv\Dotenv;
+use Symfony\Component\Dotenv\Exception\FormatException;
+
 class Variable
 {
     private $name;
@@ -26,5 +29,14 @@ class Variable
     public function getValue()
     {
         return $this->value;
+    }
+
+    public function getDotenvValue(): ?string
+    {
+        try {
+            return @(new Dotenv())->parse('VALUE=' . $this->value . "\n")['VALUE'];
+        } catch (FormatException $exception) {
+            return null;
+        }
     }
 }

@@ -2,8 +2,6 @@
 namespace Companienv\DotEnv;
 
 use Jackiedo\DotenvEditor\DotenvFormatter;
-use Symfony\Component\Dotenv\Dotenv;
-use Symfony\Component\Dotenv\Exception\FormatException;
 
 class ValueFormatter extends DotenvFormatter
 {
@@ -33,17 +31,7 @@ class ValueFormatter extends DotenvFormatter
 
     private function isReadableReferenceValue(string $value): bool
     {
-        if ($value !== $this->referenceValue) {
-            return false;
-        }
-
-        try {
-            @(new Dotenv())->parse('VALUE=' . $value . "\n");
-        } catch (FormatException $exception) {
-            return false;
-        }
-
-        return true;
+        return $value === $this->referenceValue && null !== (new Variable('VALUE', $value))->getDotenvValue();
     }
 
     private function requiresQuotes(string $value): bool

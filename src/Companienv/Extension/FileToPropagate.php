@@ -72,6 +72,6 @@ class FileToPropagate implements Extension
 
     private function getFilePath(Variable $variable, ?string $currentValue) : string
     {
-        return (string) ($currentValue ?: $variable->getValue());
+        return (string) ($currentValue ?: ($variable->getDotenvValue() ?? $variable->getValue()));
     }
 }

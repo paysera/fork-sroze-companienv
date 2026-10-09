@@ -261,6 +261,27 @@ final class CompanionTest extends TestCase
                 "KEY_PATH=custom.pem # from the vault\n",
                 $missingOne . "\n<info>Keys</info>\n\nKEY_PATH: What is the path of your downloaded file?\n",
             ],
+            'file to propagate present at the path its .env.dist default names' => [
+                [
+                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=target.pem # the deploy key\n",
+                    'target.pem' => 'CURRENT',
+                ],
+                ["Let's fix this? (y)" => 'y'],
+                "KEY_PATH=target.pem\n",
+                $missingOne . "\n<info>Keys</info>\n\n",
+            ],
+            'file to propagate missing: copied to the path its .env.dist default names' => [
+                [
+                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=target.pem # the deploy key\n",
+                    '/downloads/key.pem' => 'DOWNLOADED',
+                ],
+                [
+                    "Let's fix this? (y)" => 'y',
+                    'KEY_PATH: What is the path of your downloaded file?' => '/downloads/key.pem',
+                ],
+                "KEY_PATH=target.pem\n",
+                $missingOne . "\n<info>Keys</info>\n\nKEY_PATH: What is the path of your downloaded file?\n",
+            ],
             'file to propagate without a path: the variable is asked like any other' => [
                 ['.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=\n"],
                 ["Let's fix this? (y)" => 'y', 'KEY_PATH ?' => 'keys/key.pem'],
