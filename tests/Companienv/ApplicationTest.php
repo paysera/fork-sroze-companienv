@@ -8,6 +8,7 @@ use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension\AbstractExtension;
 use Companienv\Interaction\AskVariableValues;
+use Companienv\IO\UnansweredQuestionException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -122,7 +123,10 @@ final class ApplicationTest extends TestCase
         }
 
         $this->assertSame(
-            ['error' => [RuntimeException::class => $expectedMessage], 'files' => ['.env.dist' => $distFile]],
+            [
+                'error' => [UnansweredQuestionException::class => $expectedMessage],
+                'files' => ['.env.dist' => $distFile],
+            ],
             ['error' => $error, 'files' => $this->readTemporaryDirectory()]
         );
     }

@@ -2,7 +2,6 @@
 
 namespace Companienv\IO;
 
-use RuntimeException;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -26,17 +25,12 @@ class InputOutputInteraction implements Interaction
 
     public function ask(string $question, ?string $default = null) : string
     {
-        $answer = (new QuestionHelper())->ask($this->input, $this->output, new Question($question, $default));
-
-        if ($this->input->isInteractive() && null === $answer) {
-            return $this->ask($question, $default);
-        }
+        do {
+            $answer = (new QuestionHelper())->ask($this->input, $this->output, new Question($question, $default));
+        } while (null === $answer && $this->input->isInteractive());
 
         if (null === $answer) {
-            throw new RuntimeException(sprintf(
-                'Cannot answer "%s" in non-interactive mode: the question has no default.',
-                trim(strip_tags($question))
-            ));
+            throw new UnansweredQuestionException($question);
         }
 
         return $answer;

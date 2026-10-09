@@ -76,7 +76,7 @@ final class InputOutputInteractionTest extends TestCase
                 '',
                 $askWithoutDefault,
                 [
-                    RuntimeException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
+                    UnansweredQuestionException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
                         . 'the question has no default.',
                 ],
                 '',

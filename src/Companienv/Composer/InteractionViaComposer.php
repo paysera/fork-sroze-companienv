@@ -3,8 +3,8 @@
 namespace Companienv\Composer;
 
 use Companienv\IO\Interaction;
+use Companienv\IO\UnansweredQuestionException;
 use Composer\IO\IOInterface;
-use RuntimeException;
 
 class InteractionViaComposer implements Interaction
 {
@@ -30,10 +30,7 @@ class InteractionViaComposer implements Interaction
     {
         if (!$this->io->isInteractive()) {
             if (null === $default) {
-                throw new RuntimeException(sprintf(
-                    'Cannot answer "%s" in non-interactive mode: the question has no default.',
-                    trim(strip_tags($question))
-                ));
+                throw new UnansweredQuestionException($question);
             }
 
             $this->writeln(sprintf('Automatically returned "%s" in non-interactive mode', $default));
@@ -41,9 +38,11 @@ class InteractionViaComposer implements Interaction
             return $default;
         }
 
-        $answer = $this->io->ask($question, $default);
+        do {
+            $answer = $this->io->ask($question, $default);
+        } while (null === $answer);
 
-        return null === $answer ? $this->ask($question, $default) : $answer;
+        return $answer;
     }
 
     public function writeln($messageOrMessages)

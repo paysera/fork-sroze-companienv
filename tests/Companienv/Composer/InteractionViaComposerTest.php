@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Companienv\Composer;
 
+use Companienv\IO\UnansweredQuestionException;
 use Composer\IO\ConsoleIO;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -96,7 +97,7 @@ final class InteractionViaComposerTest extends TestCase
                 '',
                 $askWithoutDefault,
                 [
-                    RuntimeException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
+                    UnansweredQuestionException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
                         . 'the question has no default.',
                 ],
                 '',
