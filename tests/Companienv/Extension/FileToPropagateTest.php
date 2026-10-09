@@ -95,13 +95,15 @@ final class FileToPropagateTest extends TestCase
 
     /**
      * @dataProvider requirementDataProvider
+     *
+     * @param array<string, string> $files
      */
-    public function testIsVariableRequiringValue(Block $block, int $expected): void
+    public function testIsVariableRequiringValue(Block $block, array $files, int $expected): void
     {
         $this->assertSame(
             $expected,
             (new FileToPropagate())->isVariableRequiringValue(
-                new Companion($this->fileSystem([]), new InMemoryInteraction(), new Chained()),
+                new Companion($this->fileSystem($files), new InMemoryInteraction(), new Chained()),
                 $block,
                 new Variable('KEY_PATH', 'target.pem')
             )
@@ -109,13 +111,14 @@ final class FileToPropagateTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: Block, 1: int}>
+     * @return array<string, array{0: Block, 1: array<string, string>, 2: int}>
      */
     public static function requirementDataProvider(): array
     {
         return [
-            'no file-to-propagate attribute' => [new Block('Keys'), Extension::ABSTAIN],
-            'target file absent' => [self::block(), Extension::ABSTAIN],
+            'no file-to-propagate attribute' => [new Block('Keys'), [], Extension::ABSTAIN],
+            'target file absent' => [self::block(), [], Extension::VARIABLE_REQUIRED],
+            'target file present' => [self::block(), ['target.pem' => 'CURRENT'], Extension::ABSTAIN],
         ];
     }
 

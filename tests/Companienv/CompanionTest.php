@@ -173,6 +173,29 @@ final class CompanionTest extends TestCase
                 "A_BASE64_VALUE=abc123=\n",
                 $missingOne . "\nA_BASE64_VALUE ? (abc123=)\n",
             ],
+            'file to propagate present and its variable set: nothing is asked' => [
+                [
+                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=target.pem\n",
+                    '.env' => "KEY_PATH=target.pem\n",
+                    'target.pem' => 'CURRENT',
+                ],
+                [],
+                "KEY_PATH=target.pem\n",
+                '',
+            ],
+            'file to propagate missing while its variable is set: the file is asked for' => [
+                [
+                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=target.pem\n",
+                    '.env' => "KEY_PATH=target.pem\n",
+                    '/downloads/key.pem' => 'DOWNLOADED',
+                ],
+                [
+                    "Let's fix this? (y)" => 'y',
+                    'KEY_PATH: What is the path of your downloaded file?' => '/downloads/key.pem',
+                ],
+                "KEY_PATH=target.pem\n",
+                $missingOne . "\n<info>Keys</info>\n\nKEY_PATH: What is the path of your downloaded file?\n",
+            ],
             'confirmation declined: nothing is written' => [
                 ['.env.dist' => "MY_VARIABLE=default-value\n"],
                 ["Let's fix this? (y)" => ''],

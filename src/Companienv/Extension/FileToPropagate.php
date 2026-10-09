@@ -53,7 +53,7 @@ class FileToPropagate implements Extension
         }
 
         return $companion->getFileSystem()->exists($variable->getValue())
-             ? Extension::VARIABLE_REQUIRED
-             : Extension::ABSTAIN;
+             ? Extension::ABSTAIN
+             : Extension::VARIABLE_REQUIRED;
     }
 }
