@@ -22,9 +22,18 @@ final class ValueFormatterTest extends TestCase
     public static function valueDataProvider(): array
     {
         return [
-            'unquoted value is written as is' => ['a\\b"c d', false, 'a\\b"c d'],
-            'quoted value escapes backslashes and double quotes' => ['a\\b"c d', true, '"a\\\\b\\"c d"'],
-            'quoted empty value' => ['', true, '""'],
+            'plain value' => ['abc123=$1', false, 'abc123=$1'],
+            'value in double quotes' => ['"My App"', false, '"My App"'],
+            'value in single quotes' => ["'my site'", false, "'my site'"],
+            'value with a space' => ['my site', false, "'my site'"],
+            'value with a hash' => ['a#b', false, "'a#b'"],
+            'value with a double quote' => ['a"b', false, "'a\"b'"],
+            'value with a backslash' => ['C:\\new', false, "'C:\\new'"],
+            'two quoted strings' => ['"a" "b"', false, "'\"a\" \"b\"'"],
+            'value with a single quote' => ["it's", false, '"it\'s"'],
+            'value with a single quote, double quotes and a backslash' => ['it\'s "a\\b"', false, '"it\'s \\"a\\\\b\\""'],
+            'forced quotes on a plain value' => ['abc', true, "'abc'"],
+            'forced quotes on an empty value' => ['', true, "''"],
         ];
     }
 }

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Without interaction, a question with no default (the RSA pass phrase, the SSL domain name, the path of a file to propagate) failed with a `TypeError` in the Composer script and was asked again without end in the console command. It now fails with a `RuntimeException` that names the question.
 - Without interaction, the console command asked again without end for a variable whose default is empty. It now writes the empty value, as the Composer script does.
 - In the Composer script, an empty answer to a question with no default failed with a `TypeError`. The question is now asked again, as the console command does.
+- A value containing whitespace, `#`, a quote or a backslash was written without quotes, so Dotenv could not read the `.env` file or read a different value. Such a value is now written in quotes. A value that is already in quotes is written as it is.
 - PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.2.0 and earlier when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
 

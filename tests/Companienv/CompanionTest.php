@@ -34,6 +34,79 @@ final class CompanionTest extends TestCase
     }
 
     /**
+     * @dataProvider writtenValueDataProvider
+     *
+     * @param array<string, string> $answers
+     * @param array<string, string> $expectedValues
+     */
+    public function testFillGapsWritesValuesThatReadBack(
+        string $distFile,
+        array $answers,
+        string $expectedEnv,
+        array $expectedValues
+    ): void {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write('.env.dist', $distFile);
+        $companion = new Companion(
+            $fileSystem,
+            new InMemoryInteraction(["Let's fix this? (y)" => 'y'] + $answers),
+            new Chained(Application::defaultExtensions())
+        );
+
+        $companion->fillGaps();
+
+        $this->assertSame(
+            ['.env' => $expectedEnv, 'values' => $expectedValues],
+            ['.env' => $fileSystem->getContents('.env'), 'values' => $companion->getDefinedVariablesHash()]
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: array<string, string>, 2: string, 3: array<string, string>}>
+     */
+    public static function writtenValueDataProvider(): array
+    {
+        return [
+            'plain value' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'plain'],
+                "MY_VARIABLE=plain\n",
+                ['MY_VARIABLE' => 'plain'],
+            ],
+            'value with spaces' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'my site'],
+                "MY_VARIABLE='my site'\n",
+                ['MY_VARIABLE' => 'my site'],
+            ],
+            'value with quotes' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'it\'s my "secret" phrase'],
+                "MY_VARIABLE=\"it's my \\\"secret\\\" phrase\"\n",
+                ['MY_VARIABLE' => 'it\'s my "secret" phrase'],
+            ],
+            'value with a hash' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'a #b'],
+                "MY_VARIABLE='a #b'\n",
+                ['MY_VARIABLE' => 'a #b'],
+            ],
+            'value with backslashes' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'C:\\new\\\\x'],
+                "MY_VARIABLE='C:\\new\\\\x'\n",
+                ['MY_VARIABLE' => 'C:\\new\\\\x'],
+            ],
+            'default in quotes from the dist file' => [
+                "MY_VARIABLE=\"My App\"\n",
+                ['MY_VARIABLE ? ("My App")' => '"My App"'],
+                "MY_VARIABLE=\"My App\"\n",
+                ['MY_VARIABLE' => 'My App'],
+            ],
+        ];
+    }
+
+    /**
      * @return array<string, array{0: array<string, string>, 1: array<string, string>, 2: string|null, 3: string}>
      */
     public static function fillGapsDataProvider(): array
