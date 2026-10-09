@@ -23,14 +23,19 @@ class Application extends ConsoleApplication
     /** @var Extension[] */
     private $extensions = [];
 
-    public function __construct(string $rootDirectory, array $extensions = null)
+    public function __construct(string $rootDirectory, ?array $extensions = null)
     {
-        parent::__construct('Companienv', '0.0.x-dev');
+        parent::__construct('Companienv', '0.1.x-dev');
 
         $this->rootDirectory = $rootDirectory;
         $this->extensions = $extensions !== null ? $extensions : self::defaultExtensions();
 
-        $this->add(new class([$this, 'companion'], 'companion') extends Command {
+        $this->setDefaultCommand('companion', true);
+    }
+
+    protected function getDefaultCommands(): array
+    {
+        return array_merge(parent::getDefaultCommands(), [new class([$this, 'companion'], 'companion') extends Command {
             private $callable;
 
             public function __construct(callable $callable, $name)
@@ -43,15 +48,13 @@ class Application extends ConsoleApplication
                 $this->addOption('file', null, InputOption::VALUE_REQUIRED, 'Name of the file used for the values', Application::defaultFile());
             }
 
-            protected function execute(InputInterface $input, OutputInterface $output)
+            protected function execute(InputInterface $input, OutputInterface $output): int
             {
                 $callable = $this->callable;
 
                 return $callable($input, $output);
             }
-        });
-        
-        $this->setDefaultCommand('companion', true);
+        }]);
     }
 
     public function companion(InputInterface $input, OutputInterface $output)
@@ -64,6 +67,8 @@ class Application extends ConsoleApplication
             $input->getOption('dist-file')
         );
         $companion->fillGaps();
+
+        return 0;
     }
 
     public function registerExtension(Extension $extension)

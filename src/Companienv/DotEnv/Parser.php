@@ -3,6 +3,8 @@
 namespace Companienv\DotEnv;
 
 use Companienv\IO\FileSystem\FileSystem;
+use InvalidArgumentException;
+use RuntimeException;
 
 class Parser
 {
@@ -42,7 +44,7 @@ class Parser
                     substr($line, $firstEquals + 1)
                 ));
             } else {
-                throw new \InvalidArgumentException(sprintf(
+                throw new InvalidArgumentException(sprintf(
                     'The line %d of the file %s is invalid: %s',
                     $number,
                     $path,
@@ -60,7 +62,7 @@ class Parser
         $valueRegex = '[^\) ]+';
 
         if (!preg_match('/^([a-z0-9-]+)\((('.$variableNameRegex.' ?)*)\)(:\((('.$variableNameRegex.'='.$valueRegex.' ?)*)\))?$/', $string, $matches)) {
-            throw new \RuntimeException(sprintf(
+            throw new RuntimeException(sprintf(
                 'Unable to parse the given attribute: %s',
                 $string
             ));
@@ -76,7 +78,7 @@ class Parser
 
         foreach ($envMappings as $envMapping) {
             if (false === strpos($envMapping, '=')) {
-                throw new \RuntimeException(sprintf(
+                throw new RuntimeException(sprintf(
                     'Could not parse attribute mapping "%s"',
                     $dotEnvMapping
                 ));

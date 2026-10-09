@@ -6,9 +6,11 @@ use Companienv\DotEnv\Block;
 use Companienv\DotEnv\MissingVariable;
 use Companienv\DotEnv\Parser;
 use Companienv\DotEnv\ValueFormatter;
+use Companienv\DotEnv\Variable;
 use Companienv\IO\FileSystem\FileSystem;
 use Companienv\IO\Interaction;
 use Jackiedo\DotenvEditor\DotenvWriter;
+use Symfony\Component\Dotenv\Dotenv;
 
 class Companion
 {
@@ -76,27 +78,32 @@ class Companion
 
         foreach ($block->getVariables() as $variable) {
             if (isset($missingVariables[$variable->getName()])) {
-                $this->writeVariable($variable->getName(), $this->extension->getVariableValue($this, $block, $variable));
+                $this->writeVariable($variable, $this->extension->getVariableValue($this, $block, $variable));
             }
         }
     }
 
-    private function writeVariable(string $name, string $value)
+    private function writeVariable(Variable $variable, string $value) : void
     {
+        $name = $variable->getName();
+
         if (!$this->fileSystem->exists($this->envFileName)) {
             $this->fileSystem->write($this->envFileName, '');
         }
 
         $variablesInFileHash = $this->getDefinedVariablesHash();
+        if (($variablesInFileHash[$name] ?? null) === $value) {
+            return;
+        }
 
-        $writer = new DotenvWriter(new ValueFormatter());
+        $writer = new DotenvWriter(new ValueFormatter($variable->getValue()));
         $fileContents = $this->fileSystem->getContents($this->envFileName);
         $writer->setBuffer($fileContents);
 
         if (isset($variablesInFileHash[$name])) {
-            $writer->updateSetter($name, $value);
+            $writer->updateSetter($name, $value, '');
         } else {
-            $writer->appendSetter($name, $value);
+            $writer->appendSetter($name, $value, '');
         }
 
         $this->fileSystem->write($this->envFileName, $writer->getBuffer());
@@ -127,7 +134,7 @@ class Companion
     {
         $variablesInFile = [];
         if ($this->fileSystem->exists($this->envFileName)) {
-            $dotEnv = new \Symfony\Component\Dotenv\Dotenv();
+            $dotEnv = new Dotenv();
             $variablesInFile = $dotEnv->parse($this->fileSystem->getContents($this->envFileName), $this->envFileName);
         }
 
@@ -139,7 +146,7 @@ class Companion
         return $this->interaction->askConfirmation($question);
     }
 
-    public function ask(string $question, string $default = null) : string
+    public function ask(string $question, ?string $default = null) : string
     {
         return $this->interaction->ask($question, $default);
     }
