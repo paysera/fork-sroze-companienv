@@ -22,16 +22,23 @@ final class ValueFormatterTest extends TestCase
     public static function valueDataProvider(): array
     {
         return [
-            'plain value' => ['abc123=$1', false, null, 'abc123=$1'],
+            'plain value' => ['abc123=', false, null, 'abc123='],
             'value in double quotes' => ['"My App"', false, null, '"My App"'],
             'value in single quotes' => ["'my site'", false, null, "'my site'"],
             'value with a space' => ['my site', false, null, "'my site'"],
             'value with a hash' => ['a#b', false, null, "'a#b'"],
             'value with a double quote' => ['a"b', false, null, "'a\"b'"],
             'value with a backslash' => ['C:\\new', false, null, "'C:\\new'"],
+            'value with a dollar' => ['abc123=$1', false, null, "'abc123=$1'"],
             'two quoted strings' => ['"a" "b"', false, null, "'\"a\" \"b\"'"],
-            'value with a single quote' => ["it's", false, null, '"it\'s"'],
-            'value with a single quote, double quotes and a backslash' => ['it\'s "a\\b"', false, null, '"it\'s \\"a\\\\b\\""'],
+            'value with a single quote' => ["it's my site", false, null, '"it\'s my site"'],
+            'value with a single quote and a dollar' => ["it's $1", false, null, "'it'\"'\"'s $1'"],
+            'value with single quotes, double quotes, a dollar and a backslash' => [
+                'it\'s "a\\b" for $1\'',
+                false,
+                null,
+                "'it'\"'\"'s \"a\\b\" for $1'\"'\"''",
+            ],
             'reference value' => ['dev # dev or prod', false, 'dev # dev or prod', 'dev # dev or prod'],
             'reference value Dotenv cannot read' => ['My App', false, 'My App', "'My App'"],
             'reference value ending in an unmatched quote' => ['27"', false, '27"', "'27\"'"],

@@ -24,10 +24,11 @@ class ValueFormatter extends DotenvFormatter
             return "'{$value}'";
         }
 
-        $value = str_replace('\\', '\\\\', $value);
-        $value = str_replace('"', '\"', $value);
-        $value = "\"{$value}\"";
-        return $value;
+        if (!preg_match('/[\\\\"$]/', $value)) {
+            return "\"{$value}\"";
+        }
+
+        return "'" . str_replace("'", "'\"'\"'", $value) . "'";
     }
 
     private function isReadableReferenceValue(string $value): bool
@@ -47,7 +48,7 @@ class ValueFormatter extends DotenvFormatter
 
     private function requiresQuotes(string $value): bool
     {
-        return preg_match('/[\s#"\'\\\\]/', $value)
+        return preg_match('/[\s#"\'\\\\$]/', $value)
             && !preg_match('/^(?:"(?:[^"\\\\]|\\\\.)*"|\'[^\']*\')$/s', $value);
     }
 }

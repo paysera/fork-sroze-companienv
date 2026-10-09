@@ -82,8 +82,26 @@ final class CompanionTest extends TestCase
             'value with quotes' => [
                 "MY_VARIABLE=\n",
                 ['MY_VARIABLE ?' => 'it\'s my "secret" phrase'],
-                "MY_VARIABLE=\"it's my \\\"secret\\\" phrase\"\n",
+                "MY_VARIABLE='it'\"'\"'s my \"secret\" phrase'\n",
                 ['MY_VARIABLE' => 'it\'s my "secret" phrase'],
+            ],
+            'value with a single quote' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => "it's my site"],
+                "MY_VARIABLE=\"it's my site\"\n",
+                ['MY_VARIABLE' => "it's my site"],
+            ],
+            'value with a dollar' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'pa$word'],
+                "MY_VARIABLE='pa\$word'\n",
+                ['MY_VARIABLE' => 'pa$word'],
+            ],
+            'value with a single quote, a dollar and a backslash' => [
+                "MY_VARIABLE=\n",
+                ['MY_VARIABLE ?' => 'it\'s $HOME C:\\new'],
+                "MY_VARIABLE='it'\"'\"'s \$HOME C:\\new'\n",
+                ['MY_VARIABLE' => 'it\'s $HOME C:\\new'],
             ],
             'value with a hash' => [
                 "MY_VARIABLE=\n",
@@ -120,6 +138,12 @@ final class CompanionTest extends TestCase
                 ['MY_VARIABLE ? (dev # dev or prod)' => 'dev # dev or prod'],
                 "MY_VARIABLE=dev # dev or prod\n",
                 ['MY_VARIABLE' => 'dev'],
+            ],
+            'default referencing another variable from the dist file' => [
+                "DB_USER=app\nDB_URL=mysql://\${DB_USER}@db\n",
+                ['DB_USER ? (app)' => 'app', 'DB_URL ? (mysql://${DB_USER}@db)' => 'mysql://${DB_USER}@db'],
+                "DB_USER=app\nDB_URL=mysql://\${DB_USER}@db\n",
+                ['DB_USER' => 'app', 'DB_URL' => 'mysql://app@db'],
             ],
         ];
     }
@@ -170,7 +194,7 @@ final class CompanionTest extends TestCase
             'empty value updated with a value containing a dollar and a digit' => [
                 ['.env.dist' => "DB_PASSWORD=secret\n", '.env' => "DB_PASSWORD=\n"],
                 ["Let's fix this? (y)" => 'y', 'DB_PASSWORD ? (secret)' => 'pa$1ss'],
-                'DB_PASSWORD=pa$1ss' . "\n",
+                "DB_PASSWORD='pa\$1ss'\n",
                 $missingOne . "\nDB_PASSWORD ? (secret)\n",
             ],
             'empty value with an empty reference: nothing is asked' => [
