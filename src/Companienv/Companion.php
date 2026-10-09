@@ -6,6 +6,7 @@ use Companienv\DotEnv\Block;
 use Companienv\DotEnv\MissingVariable;
 use Companienv\DotEnv\Parser;
 use Companienv\DotEnv\ValueFormatter;
+use Companienv\DotEnv\Variable;
 use Companienv\IO\FileSystem\FileSystem;
 use Companienv\IO\Interaction;
 use Jackiedo\DotenvEditor\DotenvWriter;
@@ -77,13 +78,15 @@ class Companion
 
         foreach ($block->getVariables() as $variable) {
             if (isset($missingVariables[$variable->getName()])) {
-                $this->writeVariable($variable->getName(), $this->extension->getVariableValue($this, $block, $variable));
+                $this->writeVariable($variable, $this->extension->getVariableValue($this, $block, $variable));
             }
         }
     }
 
-    private function writeVariable(string $name, string $value)
+    private function writeVariable(Variable $variable, string $value) : void
     {
+        $name = $variable->getName();
+
         if (!$this->fileSystem->exists($this->envFileName)) {
             $this->fileSystem->write($this->envFileName, '');
         }
@@ -93,7 +96,7 @@ class Companion
             return;
         }
 
-        $writer = new DotenvWriter(new ValueFormatter());
+        $writer = new DotenvWriter(new ValueFormatter($variable->getValue()));
         $fileContents = $this->fileSystem->getContents($this->envFileName);
         $writer->setBuffer($fileContents);
 

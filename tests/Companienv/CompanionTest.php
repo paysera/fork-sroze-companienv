@@ -103,6 +103,24 @@ final class CompanionTest extends TestCase
                 "MY_VARIABLE=\"My App\"\n",
                 ['MY_VARIABLE' => 'My App'],
             ],
+            'default with a space from the dist file' => [
+                "MY_VARIABLE=My App\n",
+                ['MY_VARIABLE ? (My App)' => 'My App'],
+                "MY_VARIABLE='My App'\n",
+                ['MY_VARIABLE' => 'My App'],
+            ],
+            'default ending in an unmatched quote from the dist file' => [
+                "MY_VARIABLE=27\"\n",
+                ['MY_VARIABLE ? (27")' => '27"'],
+                "MY_VARIABLE='27\"'\n",
+                ['MY_VARIABLE' => '27"'],
+            ],
+            'default with an inline comment from the dist file' => [
+                "MY_VARIABLE=dev # dev or prod\n",
+                ['MY_VARIABLE ? (dev # dev or prod)' => 'dev # dev or prod'],
+                "MY_VARIABLE=dev # dev or prod\n",
+                ['MY_VARIABLE' => 'dev'],
+            ],
         ];
     }
 
