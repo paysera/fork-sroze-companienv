@@ -6,7 +6,9 @@ namespace Companienv;
 
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
+use Companienv\Extension\AbstractExtension;
 use Companienv\Extension\Chained;
+use Companienv\Interaction\AskVariableValues;
 use Companienv\IO\InMemoryFileSystem;
 use Companienv\IO\InMemoryInteraction;
 use PHPUnit\Framework\TestCase;
@@ -699,6 +701,31 @@ final class CompanionTest extends TestCase
             'only the second file' => [['custom.pem'], false],
             'the second file at its .env.dist path only' => [['a.pem', 'b.pem'], false],
         ];
+    }
+
+    public function testFillGapsWritesAValueMarkedAsLiteralSoThatDotenvReadsItAsGiven(): void
+    {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write('.env.dist', "SECRET=pa\$sword\nREFERENCE=pa\$sword\n");
+        $extension = new class extends AbstractExtension {
+            public function getVariableValue(Companion $companion, Block $block, Variable $variable): ?string
+            {
+                if ($variable->getName() === 'SECRET') {
+                    $companion->markValueAsLiteral('SECRET');
+                }
+
+                return $variable->getValue();
+            }
+        };
+        $companion = new Companion(
+            $fileSystem,
+            new InMemoryInteraction([self::FIX_QUESTION => 'y']),
+            new Chained([$extension, new AskVariableValues()])
+        );
+
+        $companion->fillGaps();
+
+        $this->assertSame("SECRET='pa\$sword'\nREFERENCE=pa\$sword\n", $fileSystem->getContents('.env'));
     }
 
     public function testFillGapsVotesAgainstTheEnvFileOfEachRun(): void

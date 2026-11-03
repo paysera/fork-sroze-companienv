@@ -27,6 +27,10 @@ class Companion
      * @var array<string, true>
      */
     private $skippedVariableNames;
+    /**
+     * @var array<string, true>
+     */
+    private $literalVariableNames;
 
     public function __construct(FileSystem $fileSystem, Interaction $interaction, Extension $extension, string $envFileName = '.env', string $distFileName = '.env.dist')
     {
@@ -36,6 +40,7 @@ class Companion
         $this->reference = (new Parser())->parse($fileSystem, $distFileName);
         $this->envFileName = $envFileName;
         $this->skippedVariableNames = [];
+        $this->literalVariableNames = [];
     }
 
     public function fillGaps()
@@ -105,7 +110,8 @@ class Companion
             return;
         }
 
-        $writer = new DotenvWriter(new ValueFormatter($variable->getValue()));
+        $referenceValue = isset($this->literalVariableNames[$name]) ? null : $variable->getValue();
+        $writer = new DotenvWriter(new ValueFormatter($referenceValue));
         $fileContents = $this->fileSystem->getContents($this->envFileName);
         $writer->setBuffer($fileContents);
 
@@ -223,6 +229,11 @@ class Companion
         }
 
         return true;
+    }
+
+    public function markValueAsLiteral(string $variableName): void
+    {
+        $this->literalVariableNames[$variableName] = true;
     }
 
     private function getDefinedPath(Variable $variable): string

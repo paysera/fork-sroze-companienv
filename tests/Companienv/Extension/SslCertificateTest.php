@@ -504,6 +504,35 @@ final class SslCertificateTest extends TestCase
         ];
     }
 
+    public function testFillGapsWritesADomainNameEqualToItsDefaultAsTyped(): void
+    {
+        file_put_contents(
+            $this->temporaryDirectory . '/.env.dist',
+            "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\nCERT_KEY_PATH=key.pem\n"
+                . "CERT_PATH=certificate.pem\nCERT_DOMAIN=local\$host\n"
+        );
+        $companion = new Companion(
+            new NativePhpFileSystem($this->temporaryDirectory),
+            new InMemoryInteraction([
+                'Let\'s fix this? (y)' => 'y',
+                self::CONFIRMATION => 'y',
+                self::DOMAIN_QUESTION => 'local$host',
+            ]),
+            new Chained([new SslCertificate()])
+        );
+
+        $companion->fillGaps();
+
+        $certificate = openssl_x509_parse((string) file_get_contents($this->temporaryDirectory . '/certificate.pem'));
+        $this->assertSame(
+            ['domain read from .env' => 'local$host', 'domain in the certificate' => 'local$host'],
+            [
+                'domain read from .env' => $companion->getDefinedVariablesHash()['CERT_DOMAIN'] ?? null,
+                'domain in the certificate' => $certificate['subject']['CN'],
+            ]
+        );
+    }
+
     /**
      * @return list<Variable>
      */

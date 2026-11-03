@@ -70,7 +70,9 @@ class SslCertificate implements Extension
                 $block->getVariable($pathName)
             );
         }
-        $this->populatedVariables[$attribute->getVariableNames()[2]] = $domainName;
+        $domainVariableName = $attribute->getVariableNames()[2];
+        $this->populatedVariables[$domainVariableName] = $domainName;
+        $companion->markValueAsLiteral($domainVariableName);
 
         return $this->populatedVariables[$variable->getName()];
     }

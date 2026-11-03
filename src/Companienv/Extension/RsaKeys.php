@@ -90,7 +90,9 @@ class RsaKeys implements Extension
                 $block->getVariable($pathName)
             );
         }
-        $this->populatedVariables[$attribute->getVariableNames()[2]] = $passPhrase;
+        $passPhraseVariableName = $attribute->getVariableNames()[2];
+        $this->populatedVariables[$passPhraseVariableName] = $passPhrase;
+        $companion->markValueAsLiteral($passPhraseVariableName);
 
         return $this->populatedVariables[$variable->getName()];
     }

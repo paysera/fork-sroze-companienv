@@ -24,6 +24,7 @@ final class RsaKeysTest extends TestCase
         . 'Do you want to automatically generate them? (y)';
     private const PASS_PHRASE_QUESTION = 'Enter pass phrase to protect the keys:';
     private const FIX_QUESTION = 'Let\'s fix this? (y)';
+    private const PAIR = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n";
     private const REPEATED_PASS_PHRASE_QUESTION = 'The pass phrase must be 4 to 1023 bytes long. '
         . self::PASS_PHRASE_QUESTION;
 
@@ -538,6 +539,23 @@ final class RsaKeysTest extends TestCase
                 "KEY_PATH=0\n",
             ],
         ];
+    }
+
+    public function testFillGapsWritesAPassPhraseEqualToItsDefaultAsTyped(): void
+    {
+        $companion = $this->fillGaps(
+            self::PAIR . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=pa\$sword\n",
+            '',
+            'pa$sword'
+        );
+
+        $this->assertSame(
+            ['pass phrase' => 'pa$sword', 'files at the paths .env gives, opened by its pass phrase' => [true, true]],
+            [
+                'pass phrase' => $companion->getDefinedVariablesHash()['KEY_PASS'] ?? null,
+                'files at the paths .env gives, opened by its pass phrase' => $this->readKeyPair($companion),
+            ]
+        );
     }
 
     /**
