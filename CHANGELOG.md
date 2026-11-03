@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `$(…)` in `.env` ran again each time the file was read, several times for each variable. It now runs once each time the file changes.
 - PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.2.0 and earlier when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
+- On `symfony/dotenv` 4.4.0 and 5.0.0, a `${VAR}` in `.env` that nothing defines made the Composer script fail with an `ErrorException` the next time it read the file, such as a path written from a `.env.dist` default that `#+only-if` leaves out.
 
 ### Security
 - Key paths, the pass phrase and the domain name are passed to openssl as arguments instead of a shell command line. A `$(…)` in a `.env.dist` path that `.env` does not set is still run, now by Dotenv, as in any `.env.dist` default. So is one in a `.env.dist` default that `.env` does not set and that the path uses, directly or through another such default: a path without `$(…)` uses the variables Dotenv reads in it, and one with a `$(…)` uses those written in it as `$NAME` or `${NAME}`, also in quotes or a comment. The commands of the other defaults do not run.

@@ -143,9 +143,10 @@ class Companion
         // Parsed, and the .env.dist values resolved, once for each .env content, so that a command in .env or in a
         // .env.dist path does not run again until .env changes
         if ($envContents !== $this->envContents) {
+            // Dotenv 4.4.0 and 5.0.0 raise a notice for an undefined ${VAR}, which Composer turns into an exception
             $this->definedVariables = null === $envContents
                 ? []
-                : (new Dotenv())->parse($envContents, $this->envFileName);
+                : @(new Dotenv())->parse($envContents, $this->envFileName);
             $this->resolvedDistValues = [];
             $this->envContents = $envContents;
         }
