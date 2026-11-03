@@ -26,8 +26,7 @@ class FileToPropagate implements Extension
             return null;
         }
 
-        // A path set in .env stays; otherwise .env gets the .env.dist one as written
-        $value = ($companion->getDefinedVariablesHash()[$variable->getName()] ?? null) ?: $variable->getValue();
+        $value = $companion->getVariablePathForEnvFile($variable);
         if ($fileSystem->exists($filename)) {
             return $value;
         }

@@ -3,7 +3,6 @@
 namespace Companienv\Extension;
 
 use Companienv\Companion;
-use Companienv\DotEnv\Attribute;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
@@ -31,14 +30,19 @@ class RsaKeys implements Extension
             return $this->populatedVariables[$variable->getName()];
         }
 
+        $pathNames = array_slice($attribute->getVariableNames(), 0, 2);
+
         // An existing pair is kept, and a declined one not generated, for the whole run: its variables are asked like
         // any other, so that a path typed for one file does not make the pair look missing
-        if ($this->filesExist($companion, $block, $attribute) || !$companion->askConfirmation(sprintf(
-            'Variables %s represents an RSA public/private key. Do you want to automatically generate them? (y) ',
-            implode(' and ', array_map(function ($variable) {
-                return '<comment>'.$variable.'</comment>';
-            }, $attribute->getVariableNames()))
-        ))) {
+        if (
+            $companion->filesExistAtVariablePaths($block, $pathNames)
+            || !$companion->askConfirmation(sprintf(
+                'Variables %s represents an RSA public/private key. Do you want to automatically generate them? (y) ',
+                implode(' and ', array_map(function (string $variable): string {
+                    return '<comment>' . $variable . '</comment>';
+                }, $attribute->getVariableNames()))
+            ))
+        ) {
             foreach ($attribute->getVariableNames() as $variableName) {
                 $this->populatedVariables[$variableName] = null;
             }
@@ -48,7 +52,7 @@ class RsaKeys implements Extension
 
         $fileSystem = $companion->getFileSystem();
         $passPhrase = $this->askPassPhrase($companion);
-        list($privateKeyPath, $publicKeyPath) = $this->getPaths($companion, $block, $attribute);
+        [$privateKeyPath, $publicKeyPath] = $companion->getVariablePaths($block, $pathNames);
 
         try {
             (new Process(
@@ -81,11 +85,10 @@ class RsaKeys implements Extension
             );
         }
 
-        // A path set in .env stays; otherwise .env gets the .env.dist one as written
-        $definedVariables = $companion->getDefinedVariablesHash();
-        foreach (array_slice($attribute->getVariableNames(), 0, 2) as $pathName) {
-            $this->populatedVariables[$pathName] = ($definedVariables[$pathName] ?? '')
-                ?: $block->getVariable($pathName)->getValue();
+        foreach ($pathNames as $pathName) {
+            $this->populatedVariables[$pathName] = $companion->getVariablePathForEnvFile(
+                $block->getVariable($pathName)
+            );
         }
         $this->populatedVariables[$attribute->getVariableNames()[2]] = $passPhrase;
 
@@ -122,24 +125,8 @@ class RsaKeys implements Extension
             return Extension::ABSTAIN;
         }
 
-        return $this->filesExist($companion, $block, $attribute) ? Extension::ABSTAIN : Extension::VARIABLE_REQUIRED;
-    }
-
-    private function filesExist(Companion $companion, Block $block, Attribute $attribute) : bool
-    {
-        list($privateKeyPath, $publicKeyPath) = $this->getPaths($companion, $block, $attribute);
-
-        return $companion->getFileSystem()->exists($privateKeyPath)
-            && $companion->getFileSystem()->exists($publicKeyPath);
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getPaths(Companion $companion, Block $block, Attribute $attribute) : array
-    {
-        return array_map(function (string $name) use ($companion, $block) : string {
-            return $companion->getVariablePath($block->getVariable($name));
-        }, array_slice($attribute->getVariableNames(), 0, 2));
+        return $companion->filesExistAtVariablePaths($block, array_slice($attribute->getVariableNames(), 0, 2))
+            ? Extension::ABSTAIN
+            : Extension::VARIABLE_REQUIRED;
     }
 }

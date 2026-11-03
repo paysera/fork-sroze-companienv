@@ -495,6 +495,12 @@ final class SslCertificateTest extends TestCase
                 Extension::VARIABLE_REQUIRED,
                 "CERT_KEY_PATH=\nCERT_PATH=\n",
             ],
+            'a key path of 0 in .env' => [
+                self::block(),
+                ['0', 'certificate.pem'],
+                Extension::ABSTAIN,
+                "CERT_KEY_PATH=0\n",
+            ],
         ];
     }
 

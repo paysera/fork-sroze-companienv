@@ -529,6 +529,12 @@ final class RsaKeysTest extends TestCase
                 Extension::VARIABLE_REQUIRED,
                 "KEY_PATH=\nPUB_PATH=\n",
             ],
+            'a private key path of 0 in .env' => [
+                self::block(),
+                ['0', 'public.pem'],
+                Extension::ABSTAIN,
+                "KEY_PATH=0\n",
+            ],
         ];
     }
 

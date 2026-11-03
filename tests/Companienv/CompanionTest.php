@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Companienv;
 
+use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension\Chained;
 use Companienv\IO\InMemoryFileSystem;
@@ -14,6 +15,7 @@ use Symfony\Component\Dotenv\Dotenv;
 final class CompanionTest extends TestCase
 {
     private const FILE_QUESTION = 'KEY_PATH: What is the path of your downloaded file? (leave empty to skip)';
+    private const FIX_QUESTION = 'Let\'s fix this? (y)';
 
     /**
      * @dataProvider fillGapsDataProvider
@@ -620,6 +622,106 @@ final class CompanionTest extends TestCase
                 'keys/target.pem' => $fileSystem->exists('keys/target.pem'),
             ]
         );
+    }
+
+    /**
+     * @dataProvider envPathDataProvider
+     */
+    public function testVariablePathFallsBackToTheDistPathOnlyWhenTheEnvFileSetsNone(
+        ?string $env,
+        string $expectedPath,
+        string $expectedPathForEnvFile
+    ): void {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write('.env.dist', '');
+        if ($env !== null) {
+            $fileSystem->write('.env', $env);
+        }
+        $companion = new Companion($fileSystem, new InMemoryInteraction(), new Chained());
+        $variable = new Variable('KEY_PATH', '"target.pem"');
+
+        $this->assertSame(
+            ['path' => $expectedPath, 'path for .env' => $expectedPathForEnvFile],
+            [
+                'path' => $companion->getVariablePath($variable),
+                'path for .env' => $companion->getVariablePathForEnvFile($variable),
+            ]
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string|null, 1: string, 2: string}>
+     */
+    public static function envPathDataProvider(): array
+    {
+        return [
+            'no .env file' => [null, 'target.pem', '"target.pem"'],
+            'not set in .env' => ["OTHER=1\n", 'target.pem', '"target.pem"'],
+            'empty in .env' => ["KEY_PATH=\n", 'target.pem', '"target.pem"'],
+            '0 in .env' => ["KEY_PATH=0\n", '0', '0'],
+            'set in .env' => ["KEY_PATH=custom.pem\n", 'custom.pem', 'custom.pem'],
+        ];
+    }
+
+    /**
+     * @dataProvider pathFilesDataProvider
+     *
+     * @param list<string> $files
+     */
+    public function testFilesExistAtVariablePathsOnlyWhenEveryFileIsThere(array $files, bool $expected): void
+    {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write('.env.dist', '');
+        $fileSystem->write('.env', "B_PATH=custom.pem\n");
+        foreach ($files as $path) {
+            $fileSystem->write($path, 'CONTENTS');
+        }
+        $companion = new Companion($fileSystem, new InMemoryInteraction(), new Chained());
+        $block = new Block('Files', '', [new Variable('A_PATH', '"a.pem"'), new Variable('B_PATH', 'b.pem')]);
+
+        $this->assertSame(
+            ['paths' => ['a.pem', 'custom.pem'], 'files exist' => $expected],
+            [
+                'paths' => $companion->getVariablePaths($block, ['A_PATH', 'B_PATH']),
+                'files exist' => $companion->filesExistAtVariablePaths($block, ['A_PATH', 'B_PATH']),
+            ]
+        );
+    }
+
+    /**
+     * @return array<string, array{0: list<string>, 1: bool}>
+     */
+    public static function pathFilesDataProvider(): array
+    {
+        return [
+            'both files' => [['a.pem', 'custom.pem'], true],
+            'only the first file' => [['a.pem'], false],
+            'only the second file' => [['custom.pem'], false],
+            'the second file at its .env.dist path only' => [['a.pem', 'b.pem'], false],
+        ];
+    }
+
+    public function testFillGapsOffersAPathOf0SetInTheEnvFileAsTheDefault(): void
+    {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write(
+            '.env.dist',
+            "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\nKEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n"
+        );
+        $fileSystem->write('.env', "KEY_PATH=0\n");
+        $interaction = new InMemoryInteraction([
+            self::FIX_QUESTION => 'y',
+            'Variables KEY_PATH and PUB_PATH and KEY_PASS represents an RSA public/private key. '
+                . 'Do you want to automatically generate them? (y)' => 'n',
+            'KEY_PATH ? (0)' => '0',
+            'PUB_PATH ? (public.pem)' => 'public.pem',
+            'KEY_PASS ?' => 'phrase',
+        ]);
+        $companion = new Companion($fileSystem, $interaction, new Chained(Application::defaultExtensions()));
+
+        $companion->fillGaps();
+
+        $this->assertSame("KEY_PATH=0\nPUB_PATH=public.pem\nKEY_PASS=phrase\n", $fileSystem->getContents('.env'));
     }
 
     public function testResolveDistValueReadsAReferenceToAQuotedCommandAsDotenvDoes(): void

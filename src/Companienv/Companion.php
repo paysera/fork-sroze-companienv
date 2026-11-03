@@ -159,8 +159,47 @@ class Companion
      */
     public function getVariablePath(Variable $variable) : string
     {
-        return (string) (($this->getDefinedVariablesHash()[$variable->getName()] ?? '')
-            ?: $this->resolveDistValue($variable));
+        $path = $this->getDefinedPath($variable);
+
+        return $path !== '' ? $path : $this->resolveDistValue($variable);
+    }
+
+    public function getVariablePathForEnvFile(Variable $variable): ?string
+    {
+        $path = $this->getDefinedPath($variable);
+
+        return $path !== '' ? $path : $variable->getValue();
+    }
+
+    /**
+     * @param string[] $variableNames
+     *
+     * @return string[]
+     */
+    public function getVariablePaths(Block $block, array $variableNames): array
+    {
+        return array_map(function (string $variableName) use ($block): string {
+            return $this->getVariablePath($block->getVariable($variableName));
+        }, $variableNames);
+    }
+
+    /**
+     * @param string[] $variableNames
+     */
+    public function filesExistAtVariablePaths(Block $block, array $variableNames): bool
+    {
+        foreach ($this->getVariablePaths($block, $variableNames) as $path) {
+            if (!$this->fileSystem->exists($path)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function getDefinedPath(Variable $variable): string
+    {
+        return $this->getDefinedVariablesHash()[$variable->getName()] ?? '';
     }
 
     /**

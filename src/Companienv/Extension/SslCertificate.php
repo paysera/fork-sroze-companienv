@@ -3,7 +3,6 @@
 namespace Companienv\Extension;
 
 use Companienv\Companion;
-use Companienv\DotEnv\Attribute;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
@@ -28,14 +27,19 @@ class SslCertificate implements Extension
             return $this->populatedVariables[$variable->getName()];
         }
 
+        $pathNames = array_slice($attribute->getVariableNames(), 0, 2);
+
         // An existing key and certificate are kept, and declined ones not generated, for the whole run: their
         // variables are asked like any other, so that a path typed for one file does not make them look missing
-        if ($this->filesExist($companion, $block, $attribute) || !$companion->askConfirmation(sprintf(
-            'Variables %s represents an SSL certificate. Do you want to automatically generate them? (y) ',
-            implode(' and ', array_map(function ($variable) {
-                return '<comment>'.$variable.'</comment>';
-            }, $attribute->getVariableNames()))
-        ))) {
+        if (
+            $companion->filesExistAtVariablePaths($block, $pathNames)
+            || !$companion->askConfirmation(sprintf(
+                'Variables %s represents an SSL certificate. Do you want to automatically generate them? (y) ',
+                implode(' and ', array_map(function (string $variable): string {
+                    return '<comment>' . $variable . '</comment>';
+                }, $attribute->getVariableNames()))
+            ))
+        ) {
             foreach ($attribute->getVariableNames() as $variableName) {
                 $this->populatedVariables[$variableName] = null;
             }
@@ -44,7 +48,7 @@ class SslCertificate implements Extension
         }
 
         $domainName = $companion->ask('Enter the domain name for which to generate the self-signed SSL certificate: ');
-        list($privateKeyPath, $certificatePath) = $this->getPaths($companion, $block, $attribute);
+        [$privateKeyPath, $certificatePath] = $companion->getVariablePaths($block, $pathNames);
 
         try {
             (new Process([
@@ -61,11 +65,10 @@ class SslCertificate implements Extension
             );
         }
 
-        // A path set in .env stays; otherwise .env gets the .env.dist one as written
-        $definedVariables = $companion->getDefinedVariablesHash();
-        foreach (array_slice($attribute->getVariableNames(), 0, 2) as $pathName) {
-            $this->populatedVariables[$pathName] = ($definedVariables[$pathName] ?? '')
-                ?: $block->getVariable($pathName)->getValue();
+        foreach ($pathNames as $pathName) {
+            $this->populatedVariables[$pathName] = $companion->getVariablePathForEnvFile(
+                $block->getVariable($pathName)
+            );
         }
         $this->populatedVariables[$attribute->getVariableNames()[2]] = $domainName;
 
@@ -85,24 +88,8 @@ class SslCertificate implements Extension
             return Extension::ABSTAIN;
         }
 
-        return $this->filesExist($companion, $block, $attribute) ? Extension::ABSTAIN : Extension::VARIABLE_REQUIRED;
-    }
-
-    private function filesExist(Companion $companion, Block $block, Attribute $attribute) : bool
-    {
-        list($privateKeyPath, $certificatePath) = $this->getPaths($companion, $block, $attribute);
-
-        return $companion->getFileSystem()->exists($privateKeyPath)
-            && $companion->getFileSystem()->exists($certificatePath);
-    }
-
-    /**
-     * @return string[]
-     */
-    private function getPaths(Companion $companion, Block $block, Attribute $attribute) : array
-    {
-        return array_map(function (string $name) use ($companion, $block) : string {
-            return $companion->getVariablePath($block->getVariable($name));
-        }, array_slice($attribute->getVariableNames(), 0, 2));
+        return $companion->filesExistAtVariablePaths($block, array_slice($attribute->getVariableNames(), 0, 2))
+            ? Extension::ABSTAIN
+            : Extension::VARIABLE_REQUIRED;
     }
 }

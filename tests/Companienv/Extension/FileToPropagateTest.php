@@ -32,7 +32,7 @@ final class FileToPropagateTest extends TestCase
     /**
      * @dataProvider propagationDataProvider
      *
-     * @param array<string, string> $files
+     * @param array<int|string, string> $files
      * @param array<string, string> $answers
      * @param array<string, string|null> $expectedFiles
      */
@@ -70,7 +70,7 @@ final class FileToPropagateTest extends TestCase
     /**
      * @return array<string, array{
      *     0: Block,
-     *     1: array<string, string>,
+     *     1: array<int|string, string>,
      *     2: array<string, string>,
      *     3: string|null,
      *     4: string,
@@ -138,6 +138,14 @@ final class FileToPropagateTest extends TestCase
                 ['target.pem' => null, 'custom.pem' => null],
                 false,
             ],
+            'file present at a path of 0 set in .env: kept' => [
+                self::block(),
+                ['0' => 'CURRENT', '.env' => "KEY_PATH=0\n"],
+                [],
+                '0',
+                '',
+                ['target.pem' => null, 'custom.pem' => null],
+            ],
             'empty in .env, file present at the reference path: the reference path is written' => [
                 self::block(),
                 ['target.pem' => 'CURRENT', '.env' => "KEY_PATH=\n"],
@@ -176,7 +184,7 @@ final class FileToPropagateTest extends TestCase
     /**
      * @dataProvider requirementDataProvider
      *
-     * @param array<string, string> $files
+     * @param array<int|string, string> $files
      */
     public function testIsVariableRequiringValue(Block $block, array $files, ?string $currentValue, int $expected): void
     {
@@ -224,7 +232,7 @@ final class FileToPropagateTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: Block, 1: array<string, string>, 2: string|null, 3: int}>
+     * @return array<string, array{0: Block, 1: array<int|string, string>, 2: string|null, 3: int}>
      */
     public static function requirementDataProvider(): array
     {
@@ -255,6 +263,12 @@ final class FileToPropagateTest extends TestCase
                 [],
                 '',
                 Extension::VARIABLE_REQUIRED,
+            ],
+            'file present at a path of 0 set in .env' => [
+                self::block(),
+                ['0' => 'CURRENT'],
+                '0',
+                Extension::ABSTAIN,
             ],
         ];
     }
@@ -302,7 +316,7 @@ final class FileToPropagateTest extends TestCase
     }
 
     /**
-     * @param array<string, string> $files
+     * @param array<int|string, string> $files
      */
     private function fileSystem(array $files): InMemoryFileSystem
     {

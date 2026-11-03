@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for Symfony 6 and 7.4.
 - A PHPUnit test suite.
 - A GitHub Actions workflow that runs the tests on every PHP and Symfony combination it lists, with the lowest and the highest dependencies.
+- `Companion::getVariablePath()`, `getVariablePaths()`, `filesExistAtVariablePaths()`, `getVariablePathForEnvFile()` and `resolveDistValue()`, for an extension that reads paths from `.env` as `#+rsa-pair`, `#+ssl-certificate` and `#+file-to-propagate` do.
 
 ### Changed
 - PHP 7.1 or later is required. `symfony/process` 6 is required at 6.4.33 or later, which needs PHP 8.1.
@@ -39,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `$(…)` in `.env` ran again each time the file was read, several times for each variable. It now runs once each time the file changes.
 - PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.2.0 and earlier when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
+- A variable set to `0` in `.env` that was asked again, as in a declined `#+rsa-pair`, offered its `.env.dist` default instead of `0`, so Enter replaced the `0`.
 - On `symfony/dotenv` 4.4.0 and 5.0.0, a `${VAR}` in `.env` that nothing defines made the Composer script fail with an `ErrorException` the next time it read the file, such as a path written from a `.env.dist` default that `#+only-if` leaves out.
 
 ### Security
