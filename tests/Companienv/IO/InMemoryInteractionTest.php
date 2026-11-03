@@ -65,4 +65,33 @@ final class InMemoryInteractionTest extends TestCase
             'without interaction, an answer over the default' => [['Question?' => 'yes'], 1, ['yes'], 'default', false],
         ];
     }
+
+    /**
+     * @dataProvider confirmationDataProvider
+     *
+     * @param array<string, string> $answers
+     */
+    public function testAskConfirmationConfirmsAsTheConsoleDoes(array $answers, bool $interactive, bool $expected): void
+    {
+        $interaction = new InMemoryInteraction($answers, $interactive);
+
+        $this->assertSame($expected, $interaction->askConfirmation('<info>Confirm? (y) </info>'));
+    }
+
+    /**
+     * @return array<string, array{0: array<string, string>, 1: bool, 2: bool}>
+     */
+    public static function confirmationDataProvider(): array
+    {
+        return [
+            'y' => [['Confirm? (y)' => 'y'], true, true],
+            'yes' => [['Confirm? (y)' => 'yes'], true, true],
+            'Y' => [['Confirm? (y)' => 'Y'], true, true],
+            'empty answer: the default' => [['Confirm? (y)' => ''], true, true],
+            'n' => [['Confirm? (y)' => 'n'], true, false],
+            'no' => [['Confirm? (y)' => 'no'], true, false],
+            'without interaction: confirmed' => [[], false, true],
+            'without interaction, an answer of n: still confirmed' => [['Confirm? (y)' => 'n'], false, true],
+        ];
+    }
 }

@@ -79,13 +79,13 @@ final class RsaKeysTest extends TestCase
             'no rsa-pair attribute' => [new Block('Keys', '', self::variables()), [], ['KEY_PATH'], ''],
             'generation declined' => [
                 self::block(),
-                [self::CONFIRMATION => ''],
+                [self::CONFIRMATION => 'n'],
                 ['KEY_PATH'],
                 self::CONFIRMATION . "\n",
             ],
             'generation declined, then the rest of the pair' => [
                 self::block(),
-                [self::CONFIRMATION => ''],
+                [self::CONFIRMATION => 'n'],
                 ['KEY_PATH', 'PUB_PATH', 'KEY_PASS'],
                 self::CONFIRMATION . "\n",
             ],

@@ -29,7 +29,13 @@ class InMemoryInteraction implements Interaction
 
     public function askConfirmation(string $question): bool
     {
-        return (bool) $this->ask($question);
+        if (!$this->interactive) {
+            return true;
+        }
+
+        $answer = $this->ask($question, 'y');
+
+        return in_array(strtolower($answer !== '' ? $answer : 'y'), ['y', 'yes'], true);
     }
 
     public function ask(string $question, ?string $default = null): string

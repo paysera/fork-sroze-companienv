@@ -393,7 +393,7 @@ final class CompanionTest extends TestCase
             ],
             'confirmation declined: nothing is written' => [
                 ['.env.dist' => "MY_VARIABLE=default-value\n"],
-                ["Let's fix this? (y)" => ''],
+                ["Let's fix this? (y)" => 'n'],
                 null,
                 $missingOne . "\n<comment>I let you think about it then. "
                     . "Re-run the command to get started again.</comment>\n\n",

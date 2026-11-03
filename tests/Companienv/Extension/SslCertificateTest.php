@@ -82,13 +82,13 @@ final class SslCertificateTest extends TestCase
             ],
             'generation declined' => [
                 self::block(),
-                [self::CONFIRMATION => ''],
+                [self::CONFIRMATION => 'n'],
                 ['CERT_KEY_PATH'],
                 self::CONFIRMATION . "\n",
             ],
             'generation declined, then the rest of the pair' => [
                 self::block(),
-                [self::CONFIRMATION => ''],
+                [self::CONFIRMATION => 'n'],
                 ['CERT_KEY_PATH', 'CERT_PATH', 'CERT_DOMAIN'],
                 self::CONFIRMATION . "\n",
             ],
