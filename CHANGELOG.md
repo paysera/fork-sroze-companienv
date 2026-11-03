@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `#+file-to-propagate` looks for the file at the path set in `.env`, or at the `.env.dist` path, as Dotenv reads it, when `.env` sets none. A file that is there is kept, also when `.env` does not set the variable. A missing one is asked for, also when the variable is set, and copied to that path. An empty answer, like a run without interaction, leaves it missing: a path set in `.env` is left as it is and an empty one gets the `.env.dist` path. A variable with no path in either file is asked like any other variable.
 - A typed value that starts and ends with a quote keeps its quotes: `'abc'` now reads back as `'abc'`, where it read back as `abc`. A quoted `.env.dist` default, kept with Enter or typed again exactly, is still written as the file has it when Dotenv can read it, and so reads back without its quotes.
 - The RSA pass phrase is asked again, with the reason, unless it is 4 to 1,023 bytes long. openssl 1.1.1d refuses a shorter one, which made key generation fail, and openssl reads at most 1,023 bytes of a pass phrase on standard input, where it now goes; on OpenSSL 3, 0.0.12 took a longer one on the command line.
+- The `companion` command is registered by `Application::getDefaultCommands(): array` instead of the constructor. A subclass that overrides `getDefaultCommands()` must declare its `array` return type and include the parent's commands to keep `companion`.
 
 ### Fixed
 - The `companienv` console command failed on Symfony 5 and later.

@@ -52,7 +52,9 @@ class Application extends ConsoleApplication
             {
                 $callable = $this->callable;
 
-                return $callable($input, $output);
+                $statusCode = $callable($input, $output);
+
+                return is_numeric($statusCode) ? (int) $statusCode : 0;
             }
         }]);
     }

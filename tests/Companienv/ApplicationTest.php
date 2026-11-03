@@ -12,7 +12,9 @@ use Companienv\IO\UnansweredQuestionException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 
 final class ApplicationTest extends TestCase
 {
@@ -87,6 +89,56 @@ final class ApplicationTest extends TestCase
             ['exit code' => 0, 'output' => "Companienv 0.1.x-dev\n"],
             ['exit code' => $exitCode, 'output' => $output->fetch()]
         );
+    }
+
+    /**
+     * @dataProvider companionResultDataProvider
+     *
+     * @param mixed $result
+     */
+    public function testRunExitsWithTheCompanionResultAsSymfony34And44ReadIt($result, int $expectedExitCode): void
+    {
+        $application = new class ($this->temporaryDirectory, $result) extends Application {
+            /**
+             * @var mixed
+             */
+            private $result;
+
+            /**
+             * @param mixed $result
+             */
+            public function __construct(string $rootDirectory, $result)
+            {
+                parent::__construct($rootDirectory);
+
+                $this->result = $result;
+            }
+
+            public function companion(InputInterface $input, OutputInterface $output)
+            {
+                return $this->result;
+            }
+        };
+        $application->setAutoExit(false);
+        $application->setCatchExceptions(false);
+
+        $this->assertSame($expectedExitCode, $application->run(new ArrayInput([]), new BufferedOutput()));
+    }
+
+    /**
+     * @return array<string, array{0: mixed, 1: int}>
+     */
+    public static function companionResultDataProvider(): array
+    {
+        return [
+            'nothing' => [null, 0],
+            'an integer' => [3, 3],
+            'a numeric string' => ['7', 7],
+            'a float' => [2.9, 2],
+            'true' => [true, 0],
+            'a string with a numeric prefix' => ['12abc', 0],
+            'an array' => [[1], 0],
+        ];
     }
 
     public function testNamingAnotherCommandIsRefused(): void
