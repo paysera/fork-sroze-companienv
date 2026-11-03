@@ -7,9 +7,7 @@ use RuntimeException;
 class InMemoryInteraction implements Interaction
 {
     /**
-     * A question-answer mapping. A list of answers is served in order, one each time the question is asked.
-     *
-     * @var array
+     * @var array<string, string|list<string>>
      */
     private $answers;
 
@@ -18,8 +16,7 @@ class InMemoryInteraction implements Interaction
     private $buffer = '';
 
     /**
-     * Without interaction, a question with no answer left gets its default, as in the real interactions; with
-     * interaction, it fails, so that a test notices a question it did not expect.
+     * @param array<string, string|list<string>> $answers
      */
     public function __construct(array $answers = [], bool $interactive = true)
     {
@@ -41,7 +38,15 @@ class InMemoryInteraction implements Interaction
     public function ask(string $question, ?string $default = null): string
     {
         $normalizedKey = trim(strip_tags($question));
-        $this->buffer .= trim(strip_tags($question))."\n";
+        $this->buffer .= trim(strip_tags($question)) . "\n";
+
+        if (!$this->interactive) {
+            if ($default === null) {
+                throw new UnansweredQuestionException($question);
+            }
+
+            return $default;
+        }
 
         if (is_array($this->answers[$normalizedKey] ?? null)) {
             $answer = array_shift($this->answers[$normalizedKey]);
@@ -49,22 +54,14 @@ class InMemoryInteraction implements Interaction
             $answer = $this->answers[$normalizedKey] ?? null;
         }
 
-        if (null !== $answer) {
+        if ($answer !== null) {
             return $answer;
         }
 
-        if ($this->interactive) {
-            throw new RuntimeException(sprintf(
-                'No answer for question "%s"',
-                $normalizedKey
-            ));
-        }
-
-        if (null !== $default) {
-            return $default;
-        }
-
-        throw new UnansweredQuestionException($question);
+        throw new RuntimeException(sprintf(
+            'No answer for question "%s"',
+            $normalizedKey
+        ));
     }
 
     public function writeln($messageOrMessages)
@@ -73,7 +70,7 @@ class InMemoryInteraction implements Interaction
             $messageOrMessages = [$messageOrMessages];
         }
 
-        $this->buffer .= implode("\n", $messageOrMessages)."\n";
+        $this->buffer .= implode("\n", $messageOrMessages) . "\n";
     }
 
     public function getBuffer(): string

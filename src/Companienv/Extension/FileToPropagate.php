@@ -22,7 +22,7 @@ class FileToPropagate implements Extension
 
         $fileSystem = $companion->getFileSystem();
         $filename = $companion->getVariablePath($variable);
-        if ('' === $filename) {
+        if ($filename === '') {
             return null;
         }
 
@@ -31,13 +31,12 @@ class FileToPropagate implements Extension
             return $value;
         }
 
-        // An empty answer, and a run without interaction, leave the file missing
         $downloadedFilePath = $companion->ask(
-            '<comment>'.$variable->getName().'</comment>: '
-                .'What is the path of your downloaded file? (leave empty to skip) ',
+            '<comment>' . $variable->getName() . '</comment>: '
+                . 'What is the path of your downloaded file? (leave empty to skip) ',
             ''
         );
-        if ('' === $downloadedFilePath) {
+        if ($downloadedFilePath === '') {
             return $value;
         }
 
@@ -45,7 +44,7 @@ class FileToPropagate implements Extension
             throw new InvalidArgumentException(sprintf('The file "%s" does not exist', $downloadedFilePath));
         }
 
-        if (false === $fileSystem->write($filename, $fileSystem->getContents($downloadedFilePath, false))) {
+        if ($fileSystem->write($filename, $fileSystem->getContents($downloadedFilePath, false)) === false) {
             throw new RuntimeException(sprintf(
                 'Unable to write into "%s"',
                 $filename
@@ -63,15 +62,16 @@ class FileToPropagate implements Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int {
+    ): int {
         if (null === ($attribute = $block->getAttribute('file-to-propagate', $variable))) {
             return Extension::ABSTAIN;
         }
 
         $filename = $companion->getVariablePath($variable);
 
-        return '' === $filename || $companion->getFileSystem()->exists($filename)
-             ? Extension::ABSTAIN
-             : Extension::VARIABLE_REQUIRED;
+        return $filename === '' || $companion->getFileSystem()->exists($filename)
+            ? Extension::ABSTAIN
+            : Extension::VARIABLE_REQUIRED
+        ;
     }
 }

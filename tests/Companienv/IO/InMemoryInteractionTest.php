@@ -62,7 +62,21 @@ final class InMemoryInteractionTest extends TestCase
             'an answer over the default' => [['Question?' => 'yes'], 1, ['yes'], 'default'],
             'without interaction, no answer: the default' => [[], 1, ['default'], 'default', false],
             'without interaction, no answer and no default' => [[], 1, [$unanswered], null, false],
-            'without interaction, an answer over the default' => [['Question?' => 'yes'], 1, ['yes'], 'default', false],
+            'without interaction, an answer is ignored' => [['Question?' => 'yes'], 1, ['default'], 'default', false],
+            'without interaction, an answer cannot replace a missing default' => [
+                ['Question?' => 'yes'],
+                1,
+                [$unanswered],
+                null,
+                false,
+            ],
+            'without interaction, listed answers are ignored' => [
+                ['Question?' => ['first', 'second']],
+                2,
+                ['default', 'default'],
+                'default',
+                false,
+            ],
         ];
     }
 

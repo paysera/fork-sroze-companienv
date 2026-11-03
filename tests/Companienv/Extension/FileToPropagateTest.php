@@ -24,7 +24,7 @@ final class FileToPropagateTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (null !== $this->temporaryDirectory) {
+        if ($this->temporaryDirectory !== null) {
             $this->removeTemporaryDirectory();
         }
     }
@@ -188,7 +188,7 @@ final class FileToPropagateTest extends TestCase
      */
     public function testIsVariableRequiringValue(Block $block, array $files, ?string $currentValue, int $expected): void
     {
-        if (null !== $currentValue) {
+        if ($currentValue !== null) {
             $files['.env'] = "KEY_PATH={$currentValue}\n";
         }
 

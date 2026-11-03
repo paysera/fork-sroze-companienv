@@ -35,7 +35,7 @@ class Application extends ConsoleApplication
 
     protected function getDefaultCommands(): array
     {
-        return array_merge(parent::getDefaultCommands(), [new class([$this, 'companion'], 'companion') extends Command {
+        $companionCommand = new class ([$this, 'companion'], 'companion') extends Command {
             private $callable;
 
             public function __construct(callable $callable, $name)
@@ -56,7 +56,9 @@ class Application extends ConsoleApplication
 
                 return is_numeric($statusCode) ? (int) $statusCode : 0;
             }
-        }]);
+        };
+
+        return array_merge(parent::getDefaultCommands(), [$companionCommand]);
     }
 
     public function companion(InputInterface $input, OutputInterface $output)

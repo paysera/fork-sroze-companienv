@@ -44,7 +44,7 @@ class Chained implements Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int {
+    ): int {
         foreach ($this->extensions as $extension) {
             if (($vote = $extension->isVariableRequiringValue($companion, $block, $variable, $currentValue)) != Extension::ABSTAIN) {
                 return $vote;

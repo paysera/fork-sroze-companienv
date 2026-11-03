@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A PHPUnit test suite.
 - A GitHub Actions workflow that runs the tests on every PHP and Symfony combination it lists, with the lowest and the highest dependencies.
 - `Companion::getVariablePath()`, `getVariablePaths()`, `filesExistAtVariablePaths()`, `getVariablePathForEnvFile()` and `resolveDistValue()`, for an extension that reads paths from `.env` as `#+rsa-pair`, `#+ssl-certificate` and `#+file-to-propagate` do, and `Companion::markValueAsLiteral()`, for one whose value must read back from `.env` as given even when it equals its `.env.dist` default.
+- `Companion::recordGeneratedValues()`, for an extension whose generated files require a group of values to be saved together, including values that were already present before generation.
 
 ### Changed
 - PHP 7.1 or later is required. `symfony/process` 6 is required at 6.4.33 or later, which needs PHP 8.1.
@@ -26,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `companion` command is registered by `Application::getDefaultCommands(): array` instead of the constructor. A subclass that overrides `getDefaultCommands()` must declare its `array` return type and include the parent's commands to keep `companion`.
 
 ### Fixed
+- Generating an RSA key pair or SSL certificate after an earlier answer changes its paths now saves every generated value, including an existing pass phrase or domain name. The saved credentials match the generated files even when their variable precedes the path that triggers generation.
+- A public-key or certificate path that refers to an empty sibling path now uses the sibling's replacement default when that definition precedes it. Paths also use a newly generated pass phrase or domain name, including through an existing prefix variable, so generated paths remain consistent with the values saved in `.env`.
+- Separate key groups reuse a command-derived default when its resolved inputs are unchanged.
 - The `companienv` console command failed on Symfony 5 and later.
 - RSA key and SSL certificate generation failed with `symfony/process` 5 and later.
 - Declining RSA key or SSL certificate generation asked the same question again for the other variables of the pair.
@@ -38,14 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Without interaction, the console command asked again without end for a variable whose default is empty. It now writes the empty value, as the Composer script does.
 - In the Composer script, an empty answer to a question with no default failed with a `TypeError`. The question is now asked again, as the console command does.
 - A value containing whitespace, `#`, a quote, a backslash or `$` was written without quotes, so Dotenv could not read the `.env` file or read a different value. Such a value is now written in single quotes, or in double quotes when its only quote is a `'` and it has no `\`, `"` or `$`, so Dotenv reads back the value as it was given. A value equal to its `.env.dist` default is written as the file has it when Dotenv can read that default, or when it holds a `$(…)`, which is not run to find out. The RSA pass phrase and the SSL domain name of a generated key pair or certificate, which openssl gets as typed, are written so that Dotenv reads them back as typed.
-- A `$(…)` in `.env` ran again each time the file was read, several times for each variable. It now runs once each time the file changes.
+- A `$(…)` in `.env` ran again each time the file was read, several times for each variable. Normal reads now run it once each time the file changes. Resolving replacement key paths also parses a projected `.env` buffer once per distinct replacement context, which can run its commands before the file is written.
 - PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.2.0 and earlier when writing a variable.
 - PHP 8.4 deprecations for implicitly nullable parameters.
 - A variable set to `0` in `.env` that was asked again, as in a declined `#+rsa-pair`, offered its `.env.dist` default instead of `0`, so Enter replaced the `0`.
 - On `symfony/dotenv` 4.4.0 and 5.0.0, a `${VAR}` in `.env` that nothing defines made the Composer script fail with an `ErrorException` the next time it read the file, such as a path written from a `.env.dist` default that `#+only-if` leaves out.
 
 ### Security
-- Key paths, the pass phrase and the domain name are passed to openssl as arguments instead of a shell command line. A `$(…)` in a `.env.dist` path that `.env` does not set is still run, now by Dotenv, as in any `.env.dist` default. So is one in a `.env.dist` default that `.env` does not set and that the path uses, directly or through another such default: a path without `$(…)` uses the variables Dotenv reads in it, and one with a `$(…)` uses those written in it as `$NAME` or `${NAME}`, also in quotes or a comment. The commands of the other defaults do not run, nor that of a default `#+only-if` leaves out, except once while the variables are checked, when it is listed below the first variable of the key pair or certificate whose path uses it.
+- Key paths, the pass phrase and the domain name are passed to openssl as arguments instead of a shell command line. An active `$(…)` in a `.env.dist` path that `.env` does not set is still run by Dotenv, as in any `.env.dist` default. A path with an active command resolves defaults named in its expandable text or command body. Single-quoted literals, escaped references and trailing comments outside the command do not cause unrelated defaults to run. Other paths use only the variables Dotenv reads in them. A default that `#+only-if` leaves out can still run once while variables are checked if it is listed below the first variable of the key pair or certificate whose path uses it.
 - The domain name is escaped for openssl's subject syntax, so `/`, `+` and `\` in it no longer add subject fields or make openssl fail.
 - The RSA pass phrase is passed to openssl on standard input instead of the command line. When key generation fails, the exception no longer wraps Symfony's process exception, whose message named the pass phrase; it carries openssl's error itself.
 - A value written to `.env` that contains `$(…)` is no longer run as a shell command when Dotenv reads the file, unless it is the variable's `.env.dist` default, other than the pass phrase or domain name of a generated key pair or certificate. `symfony/dotenv` 3.4, 4.4, 5.0 to 5.4.33, 6.0 to 6.3.10, 6.4.0 and 6.4.1 replace variables before they run commands, so there it still runs when another value refers to it, such as a `.env.dist` default `B=${A}`.

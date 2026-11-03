@@ -8,7 +8,7 @@ use RuntimeException;
 
 class Parser
 {
-    public function parse(FileSystem $fileSystem, string $path) : File
+    public function parse(FileSystem $fileSystem, string $path): File
     {
         $blocks = [];
 
@@ -30,12 +30,12 @@ class Parser
                 } elseif ($block !== null) {
                     if (substr($line, 0, 2) == '#+') {
                         $block->addAttribute($this->parseAttribute(substr($line, 2)));
-                    } else if (substr($line, 1, 1) == ' ') {
+                    } elseif (substr($line, 1, 1) == ' ') {
                         $block->appendToDescription(trim($line, '# '));
                     }
                 }
             } elseif (false !== ($firstEquals = strpos($line, '='))) {
-                if (null === $block) {
+                if ($block === null) {
                     $blocks[] = $block = new Block();
                 }
 
@@ -61,7 +61,10 @@ class Parser
         $variableNameRegex = '[A-Z0-9_]+';
         $valueRegex = '[^\) ]+';
 
-        if (!preg_match('/^([a-z0-9-]+)\((('.$variableNameRegex.' ?)*)\)(:\((('.$variableNameRegex.'='.$valueRegex.' ?)*)\))?$/', $string, $matches)) {
+        $attributeRegex = '/^([a-z0-9-]+)\(((' . $variableNameRegex . ' ?)*)\)(:\((('
+            . $variableNameRegex . '=' . $valueRegex . ' ?)*)\))?$/'
+        ;
+        if (preg_match($attributeRegex, $string, $matches) !== 1) {
             throw new RuntimeException(sprintf(
                 'Unable to parse the given attribute: %s',
                 $string
@@ -77,7 +80,7 @@ class Parser
         $envMappings = explode(' ', $dotEnvMapping);
 
         foreach ($envMappings as $envMapping) {
-            if (false === strpos($envMapping, '=')) {
+            if (strpos($envMapping, '=') === false) {
                 throw new RuntimeException(sprintf(
                     'Could not parse attribute mapping "%s"',
                     $dotEnvMapping

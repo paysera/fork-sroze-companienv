@@ -29,7 +29,7 @@ class AbstractExtension implements Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int {
+    ): int {
         return Extension::ABSTAIN;
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Companienv;
 
 use Companienv\DotEnv\Block;
+use Companienv\DotEnv\Parser;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension\AbstractExtension;
 use Companienv\Extension\Chained;
@@ -241,7 +242,8 @@ final class CompanionTest extends TestCase
     {
         $missingOne = 'It looks like you are missing some configuration (1 variables). '
             . "I will help you to sort this out.\n"
-            . "Let's fix this? (y)\n";
+            . "Let's fix this? (y)\n"
+        ;
 
         return [
             'no env file: every variable is asked and written' => [
@@ -574,6 +576,31 @@ final class CompanionTest extends TestCase
             'chain of references' => ['${KEY_DIR}/private.pem # the key', 'custom/rsa/private.pem', 0],
             'reference in single quotes' => ["'\${RUN}/private.pem'", '${RUN}/private.pem', 0],
             'reference in a comment' => ['keys/private.pem # $RUN', 'keys/private.pem', 0],
+            'literal command marker in single quotes' => [
+                "'\${RUN}/\$(literal)'",
+                '${RUN}/$(literal)',
+                0,
+            ],
+            'literal command marker in a comment' => [
+                'keys/private.pem # $(echo ${RUN})',
+                'keys/private.pem',
+                0,
+            ],
+            'quoted reference before a command marker in a comment' => [
+                "'\${RUN}/private.pem' # $(literal)",
+                '${RUN}/private.pem',
+                0,
+            ],
+            'literal reference next to an active command' => [
+                "'\${RUN}/'\"\$(echo keys)\"",
+                '${RUN}/keys',
+                0,
+            ],
+            'escaped reference next to an active command' => [
+                '\\${RUN}/"$(echo keys)"',
+                '${RUN}/keys',
+                0,
+            ],
             'reference to a command' => ['${RUN}/private.pem', 'run/private.pem', 1],
             'two references to a command' => ['${A}/${B}/private.pem', 'runa/runb/private.pem', 1],
             'command naming no variable' => ['"$(echo keys)/private.pem"', 'keys/private.pem', 0],
@@ -592,6 +619,50 @@ final class CompanionTest extends TestCase
             ],
             'command with a reference to a command' => ['"$(echo ${A})/private.pem"', 'runa/private.pem', 1],
         ];
+    }
+
+    public function testVariablePathsReuseSharedCommandDefaultsAcrossGroups(): void
+    {
+        $log = (string) tempnam(sys_get_temp_dir(), 'companienv-');
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write(
+            '.env.dist',
+            "RUN=\"\$(echo x >> {$log}; wc -l < {$log})\"\n"
+                . "## First\nA=\${RUN}/a\nB=\${RUN}/b\n## Second\nC=\${RUN}/c\nD=\${RUN}/d\n"
+        );
+        $companion = new Companion($fileSystem, new InMemoryInteraction(), new Chained());
+        $blocks = (new Parser())->parse($fileSystem, '.env.dist')->getBlocks();
+
+        try {
+            $first = $companion->getVariablePaths($blocks[1], ['A', 'B']);
+            $second = $companion->getVariablePaths($blocks[2], ['C', 'D']);
+            $runs = substr_count((string) file_get_contents($log), 'x');
+        } finally {
+            unlink($log);
+        }
+
+        $this->assertSame(
+            ['first' => ['1/a', '1/b'], 'second' => ['1/c', '1/d'], 'runs' => 1],
+            ['first' => $first, 'second' => $second, 'runs' => $runs]
+        );
+    }
+
+    public function testGeneratedPathContextTracksChangesToExistingReferences(): void
+    {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write('.env.dist', "DOMAIN=\nKEY_PATH=\${PREFIX}key.pem\n");
+        $fileSystem->write('.env', "DOMAIN=old.example\nPREFIX=\${DOMAIN}-first-\nKEY_PATH=\n");
+        $companion = new Companion($fileSystem, new InMemoryInteraction(), new Chained());
+        $block = (new Parser())->parse($fileSystem, '.env.dist')->getBlocks()[0];
+
+        $first = $companion->getVariablePaths($block, ['KEY_PATH'], ['DOMAIN' => 'new.example']);
+        $fileSystem->write('.env', "DOMAIN=old.example\nPREFIX=\${DOMAIN}-second-\nKEY_PATH=\n");
+        $second = $companion->getVariablePaths($block, ['KEY_PATH'], ['DOMAIN' => 'new.example']);
+
+        $this->assertSame(
+            [['new.example-first-key.pem'], ['new.example-second-key.pem']],
+            [$first, $second]
+        );
     }
 
     public function testFillGapsResolvesADistPathAgainstTheValuesWrittenBeforeIt(): void
@@ -707,7 +778,7 @@ final class CompanionTest extends TestCase
     {
         $fileSystem = new InMemoryFileSystem();
         $fileSystem->write('.env.dist', "SECRET=pa\$sword\nREFERENCE=pa\$sword\n");
-        $extension = new class extends AbstractExtension {
+        $extension = new class () extends AbstractExtension {
             public function getVariableValue(Companion $companion, Block $block, Variable $variable): ?string
             {
                 if ($variable->getName() === 'SECRET') {
@@ -834,15 +905,15 @@ final class CompanionTest extends TestCase
         $fileSystem->write('.env.dist', "KEY_DIR=keys\nKEY_PATH=\${KEY_DIR}/private.pem\n");
         $fileSystem->write('.env', $env);
         $companion = new Companion($fileSystem, new InMemoryInteraction(), new Chained());
-        $writtenEnv = false !== strpos($env, "KEY_PATH=\n")
+        $writtenEnv = strpos($env, "KEY_PATH=\n") !== false
             ? str_replace("KEY_PATH=\n", "KEY_PATH=\${KEY_DIR}/private.pem\n", $env)
-            : $env . "KEY_PATH=\${KEY_DIR}/private.pem\n";
+            : $env . "KEY_PATH=\${KEY_DIR}/private.pem\n"
+        ;
 
         $this->assertSame(
             ['value' => $expectedValue, 'value Dotenv reads once written' => $expectedValue],
             [
                 'value' => $companion->resolveDistValue(new Variable('KEY_PATH', '${KEY_DIR}/private.pem')),
-                // @: the notice of Dotenv 4.4.0 and 5.0.0 for the undefined ${KEY_DIR}
                 'value Dotenv reads once written' => @(new Dotenv())->parse($writtenEnv)['KEY_PATH'],
             ]
         );

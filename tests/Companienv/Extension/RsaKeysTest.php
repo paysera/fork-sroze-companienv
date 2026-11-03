@@ -21,12 +21,14 @@ final class RsaKeysTest extends TestCase
     use TemporaryDirectory;
 
     private const CONFIRMATION = 'Variables KEY_PATH and PUB_PATH and KEY_PASS represents an RSA public/private key. '
-        . 'Do you want to automatically generate them? (y)';
+        . 'Do you want to automatically generate them? (y)'
+    ;
     private const PASS_PHRASE_QUESTION = 'Enter pass phrase to protect the keys:';
     private const FIX_QUESTION = 'Let\'s fix this? (y)';
     private const PAIR = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n";
     private const REPEATED_PASS_PHRASE_QUESTION = 'The pass phrase must be 4 to 1023 bytes long. '
-        . self::PASS_PHRASE_QUESTION;
+        . self::PASS_PHRASE_QUESTION
+    ;
 
     protected function setUp(): void
     {
@@ -396,7 +398,6 @@ final class RsaKeysTest extends TestCase
         $values = [];
         foreach ($block->getVariables() as $variable) {
             $values[$variable->getName()] = $extension->getVariableValue($companion, $block, $variable);
-            // The answer to the private key path, as the other extensions write it
             file_put_contents($this->temporaryDirectory . '/.env', "KEY_PATH=elsewhere.pem\n");
         }
 
@@ -478,7 +479,7 @@ final class RsaKeysTest extends TestCase
         foreach ($existingFiles as $name) {
             touch($this->temporaryDirectory . '/' . $name);
         }
-        if ('' !== $env) {
+        if ($env !== '') {
             file_put_contents($this->temporaryDirectory . '/.env', $env);
         }
 
@@ -597,6 +598,86 @@ final class RsaKeysTest extends TestCase
                 "MODE=prod\nKEY_PASS=old-phrase\n",
                 ['old-private.pem' => 'OTHER PRIVATE KEY', 'old-public.pem' => 'OTHER PUBLIC KEY'],
             ],
+        ];
+    }
+
+    /**
+     * @dataProvider generatedValuesDataProvider
+     */
+    public function testFillGapsPersistsEveryGeneratedValue(string $env, string $distVariables): void
+    {
+        file_put_contents($this->temporaryDirectory . '/private.pem', 'existing private key');
+        file_put_contents($this->temporaryDirectory . '/public.pem', 'existing public key');
+        file_put_contents($this->temporaryDirectory . '/.env', $env);
+        file_put_contents(
+            $this->temporaryDirectory . '/.env.dist',
+            "OTHER=old-\n" . self::PAIR . $distVariables
+        );
+        $companion = new Companion(
+            new NativePhpFileSystem($this->temporaryDirectory),
+            new InMemoryInteraction([
+                self::FIX_QUESTION => 'y',
+                'OTHER ? (old-)' => 'new-',
+                self::CONFIRMATION => 'y',
+                self::PASS_PHRASE_QUESTION => 'new-secret',
+            ]),
+            new Chained(Application::defaultExtensions())
+        );
+
+        $companion->fillGaps();
+
+        $this->assertSame([true, true], $this->readKeyPair($companion));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function generatedValuesDataProvider(): array
+    {
+        return [
+            'pass phrase after paths' => [
+                "OTHER=\nKEY_PATH=\nPUB_PATH=\${OTHER}public.pem\nKEY_PASS=old-secret\n",
+                "KEY_PATH=\${OTHER}private.pem\nPUB_PATH=\${OTHER}public.pem\nKEY_PASS=\n",
+            ],
+            'pass phrase before paths' => [
+                "KEY_PASS=old-secret\nOTHER=\nKEY_PATH=\nPUB_PATH=\${OTHER}public.pem\n",
+                "KEY_PASS=\nKEY_PATH=\${OTHER}private.pem\nPUB_PATH=\${OTHER}public.pem\n",
+            ],
+            'paths refer to the generated pass phrase' => [
+                "KEY_PASS=old-secret\nOTHER=old-\nKEY_PATH=\nPUB_PATH=\n",
+                "KEY_PASS=\nKEY_PATH=\${KEY_PASS}private.pem\nPUB_PATH=\${KEY_PASS}public.pem\n",
+            ],
+            'public path refers indirectly to the empty private path' => [
+                "OTHER=old-\nKEY_PATH=\nPREFIX=\${KEY_PATH}-\nPUB_PATH=\nKEY_PASS=old-secret\n",
+                "KEY_PATH=private.pem\nPUB_PATH=\${PREFIX}public.pem\nKEY_PASS=\n",
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider emptySiblingPathDataProvider
+     */
+    public function testFillGapsResolvesAnEmptySiblingPathBeforeGenerating(string $env): void
+    {
+        $companion = $this->fillGaps(
+            self::PAIR . "KEY_PATH=private.pem\nPUB_PATH=\${KEY_PATH}.pub\nKEY_PASS=\n",
+            $env,
+            'secret-phrase'
+        );
+
+        $this->assertSame([true, true], $this->readKeyPair($companion));
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function emptySiblingPathDataProvider(): array
+    {
+        return [
+            'public path missing' => ["KEY_PATH=\n"],
+            'public path after the empty private path' => ["KEY_PATH=\nPUB_PATH=\n"],
+            'public path before the empty private path' => ["PUB_PATH=\nKEY_PATH=\n"],
+            'public path already refers to empty private path' => ["KEY_PATH=\nPUB_PATH=\${KEY_PATH}.pub\n"],
         ];
     }
 

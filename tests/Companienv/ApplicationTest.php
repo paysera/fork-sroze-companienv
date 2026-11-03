@@ -197,8 +197,8 @@ final class ApplicationTest extends TestCase
      */
     public static function extensionsDataProvider(): array
     {
-        $extension = new class() extends AbstractExtension {
-            public function getVariableValue(Companion $companion, Block $block, Variable $variable)
+        $extension = new class () extends AbstractExtension {
+            public function getVariableValue(Companion $companion, Block $block, Variable $variable): string
             {
                 return 'from-extension';
             }
@@ -221,9 +221,11 @@ final class ApplicationTest extends TestCase
     public static function withoutInteractionDataProvider(): array
     {
         $rsaPair = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
-            . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n";
+            . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n"
+        ;
         $sslCertificate = "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
-            . "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n";
+            . "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n"
+        ;
         $fileToPropagate = "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=key.pem\n";
 
         return [

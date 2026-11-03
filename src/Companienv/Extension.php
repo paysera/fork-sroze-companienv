@@ -7,9 +7,9 @@ use Companienv\DotEnv\Variable;
 
 interface Extension
 {
-    const VARIABLE_REQUIRED = 1;
-    const VARIABLE_SKIP = -1;
-    const ABSTAIN = 0;
+    public const VARIABLE_REQUIRED = 1;
+    public const VARIABLE_SKIP = -1;
+    public const ABSTAIN = 0;
 
     /**
      * Get the variable value, from a given source.
@@ -41,5 +41,5 @@ interface Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int;
+    ): int;
 }

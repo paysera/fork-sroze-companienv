@@ -29,8 +29,6 @@ class SslCertificate implements Extension
 
         $pathNames = array_slice($attribute->getVariableNames(), 0, 2);
 
-        // An existing key and certificate are kept, and declined ones not generated, for the whole run: their
-        // variables are asked like any other, so that a path typed for one file does not make them look missing
         if (
             $companion->filesExistAtVariablePaths($block, $pathNames)
             || !$companion->askConfirmation(sprintf(
@@ -48,18 +46,23 @@ class SslCertificate implements Extension
         }
 
         $domainName = $companion->ask('Enter the domain name for which to generate the self-signed SSL certificate: ');
-        [$privateKeyPath, $certificatePath] = $companion->getVariablePaths($block, $pathNames);
+        $domainVariableName = $attribute->getVariableNames()[2];
+        [$privateKeyPath, $certificatePath] = $companion->getVariablePaths(
+            $block,
+            $pathNames,
+            [$domainVariableName => $domainName]
+        );
 
         try {
             (new Process([
                 'openssl', 'req', '-x509', '-nodes', '-days', '3650', '-newkey', 'rsa:2048',
                 '-keyout', $companion->getFileSystem()->realpath($privateKeyPath),
                 '-out', $companion->getFileSystem()->realpath($certificatePath),
-                '-subj', '/C=SS/ST=SS/L=SelfSignedCity/O=SelfSignedOrg/CN='.addcslashes($domainName, '\\/+'),
+                '-subj', '/C=SS/ST=SS/L=SelfSignedCity/O=SelfSignedOrg/CN=' . addcslashes($domainName, '\\/+'),
             ]))->mustRun();
         } catch (ProcessRuntimeException $exception) {
             throw new RuntimeException(
-                'Could not have generated the SSL certificate: '.$exception->getMessage(),
+                'Could not have generated the SSL certificate: ' . $exception->getMessage(),
                 $exception->getCode(),
                 $exception
             );
@@ -70,9 +73,12 @@ class SslCertificate implements Extension
                 $block->getVariable($pathName)
             );
         }
-        $domainVariableName = $attribute->getVariableNames()[2];
         $this->populatedVariables[$domainVariableName] = $domainName;
         $companion->markValueAsLiteral($domainVariableName);
+        $companion->recordGeneratedValues(array_intersect_key(
+            $this->populatedVariables,
+            array_flip($attribute->getVariableNames())
+        ));
 
         return $this->populatedVariables[$variable->getName()];
     }
@@ -85,13 +91,14 @@ class SslCertificate implements Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int {
+    ): int {
         if (null === ($attribute = $block->getAttribute('ssl-certificate', $variable))) {
             return Extension::ABSTAIN;
         }
 
         return $companion->filesExistAtVariablePaths($block, array_slice($attribute->getVariableNames(), 0, 2))
             ? Extension::ABSTAIN
-            : Extension::VARIABLE_REQUIRED;
+            : Extension::VARIABLE_REQUIRED
+        ;
     }
 }

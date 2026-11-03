@@ -59,7 +59,7 @@ final class ChainedTest extends TestCase
 
     private static function extension(string $value, int $vote): Extension
     {
-        return new class($value, $vote) extends AbstractExtension {
+        return new class ($value, $vote) extends AbstractExtension {
             private $value;
             private $vote;
 

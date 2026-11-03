@@ -29,7 +29,7 @@ class InteractionViaComposer implements Interaction
     public function ask(string $question, ?string $default = null): string
     {
         if (!$this->io->isInteractive()) {
-            if (null === $default) {
+            if ($default === null) {
                 throw new UnansweredQuestionException($question);
             }
 
@@ -40,7 +40,7 @@ class InteractionViaComposer implements Interaction
 
         do {
             $answer = $this->io->ask($question, $default);
-        } while (null === $answer);
+        } while ($answer === null);
 
         return $answer;
     }

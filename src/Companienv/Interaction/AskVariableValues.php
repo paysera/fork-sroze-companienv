@@ -20,7 +20,7 @@ class AskVariableValues implements Extension
         $question = sprintf('<comment>%s</comment> ? ', $variable->getName());
 
         if ($defaultValue !== '') {
-            $question .= '('.$defaultValue.') ';
+            $question .= '(' . $defaultValue . ') ';
         }
 
         return $companion->ask($question, $defaultValue);
@@ -34,7 +34,7 @@ class AskVariableValues implements Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int {
+    ): int {
         return (
             $currentValue === null || (
                 $currentValue === '' && $variable->getValue() !== ''

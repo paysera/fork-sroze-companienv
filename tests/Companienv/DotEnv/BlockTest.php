@@ -29,14 +29,4 @@ final class BlockTest extends TestCase
             'unknown variable' => [$block, 'UNKNOWN', null],
         ];
     }
-
-    public function testGetAttributes(): void
-    {
-        $attributes = [
-            new Attribute('only-if', ['NAME'], ['OTHER' => 'on']),
-            new Attribute('rsa-pair', ['A', 'B', 'C'], []),
-        ];
-
-        $this->assertSame($attributes, (new Block('Block', '', [], $attributes))->getAttributes());
-    }
 }

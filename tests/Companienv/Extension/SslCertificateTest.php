@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Companienv\Extension;
 
 use Companienv\Companion;
+use Companienv\Application;
 use Companienv\DotEnv\Attribute;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
@@ -20,7 +21,8 @@ final class SslCertificateTest extends TestCase
     use TemporaryDirectory;
 
     private const CONFIRMATION = 'Variables CERT_KEY_PATH and CERT_PATH and CERT_DOMAIN represents an SSL certificate. '
-        . 'Do you want to automatically generate them? (y)';
+        . 'Do you want to automatically generate them? (y)'
+    ;
     private const DOMAIN_QUESTION = 'Enter the domain name for which to generate the self-signed SSL certificate:';
 
     protected function setUp(): void
@@ -341,7 +343,6 @@ final class SslCertificateTest extends TestCase
         $values = [];
         foreach ($block->getVariables() as $variable) {
             $values[$variable->getName()] = $extension->getVariableValue($companion, $block, $variable);
-            // The answer to the key path, as the other extensions write it
             file_put_contents($this->temporaryDirectory . '/.env', "CERT_KEY_PATH=elsewhere.pem\n");
         }
 
@@ -441,7 +442,7 @@ final class SslCertificateTest extends TestCase
         foreach ($existingFiles as $name) {
             touch($this->temporaryDirectory . '/' . $name);
         }
-        if ('' !== $env) {
+        if ($env !== '') {
             file_put_contents($this->temporaryDirectory . '/.env', $env);
         }
 
@@ -531,6 +532,112 @@ final class SslCertificateTest extends TestCase
                 'domain in the certificate' => $certificate['subject']['CN'],
             ]
         );
+    }
+
+    /**
+     * @dataProvider emptySiblingPathDataProvider
+     */
+    public function testFillGapsResolvesAnEmptySiblingPathBeforeGenerating(string $env): void
+    {
+        file_put_contents($this->temporaryDirectory . '/.env', $env);
+        file_put_contents(
+            $this->temporaryDirectory . '/.env.dist',
+            "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
+                . "CERT_KEY_PATH=key.pem\nCERT_PATH=\${CERT_KEY_PATH}.crt\nCERT_DOMAIN=\n"
+        );
+        $companion = new Companion(
+            new NativePhpFileSystem($this->temporaryDirectory),
+            new InMemoryInteraction([
+                'Let\'s fix this? (y)' => 'y',
+                self::CONFIRMATION => 'y',
+                self::DOMAIN_QUESTION => 'localhost',
+            ]),
+            new Chained(Application::defaultExtensions())
+        );
+
+        $companion->fillGaps();
+
+        $values = $companion->getDefinedVariablesHash();
+        $this->assertSame(
+            ['key exists' => true, 'certificate exists' => true],
+            [
+                'key exists' => is_file($this->temporaryDirectory . '/' . $values['CERT_KEY_PATH']),
+                'certificate exists' => is_file($this->temporaryDirectory . '/' . $values['CERT_PATH']),
+            ]
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function emptySiblingPathDataProvider(): array
+    {
+        return [
+            'certificate path missing' => ["CERT_KEY_PATH=\n"],
+            'certificate path after empty key path' => ["CERT_KEY_PATH=\nCERT_PATH=\n"],
+            'certificate path before empty key path' => ["CERT_PATH=\nCERT_KEY_PATH=\n"],
+            'certificate path refers to empty key path' => ["CERT_KEY_PATH=\nCERT_PATH=\${CERT_KEY_PATH}.crt\n"],
+        ];
+    }
+
+    /**
+     * @dataProvider generatedDomainDataProvider
+     */
+    public function testFillGapsPersistsTheGeneratedDomainBeforeTheTriggeringPath(string $env, string $paths): void
+    {
+        file_put_contents($this->temporaryDirectory . '/key.pem', 'existing key');
+        file_put_contents($this->temporaryDirectory . '/certificate.pem', 'existing certificate');
+        file_put_contents(
+            $this->temporaryDirectory . '/.env',
+            $env
+        );
+        file_put_contents(
+            $this->temporaryDirectory . '/.env.dist',
+            "OTHER=old-\n## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
+                . "CERT_DOMAIN=\n" . $paths
+        );
+        $companion = new Companion(
+            new NativePhpFileSystem($this->temporaryDirectory),
+            new InMemoryInteraction([
+                'Let\'s fix this? (y)' => 'y',
+                'OTHER ? (old-)' => 'new-',
+                self::CONFIRMATION => 'y',
+                self::DOMAIN_QUESTION => 'new.example',
+            ]),
+            new Chained(Application::defaultExtensions())
+        );
+
+        $companion->fillGaps();
+
+        $values = $companion->getDefinedVariablesHash();
+        $certificate = openssl_x509_parse(
+            (string) file_get_contents($this->temporaryDirectory . '/' . $values['CERT_PATH'])
+        );
+        $this->assertSame(
+            ['domain in .env' => 'new.example', 'domain in certificate' => 'new.example'],
+            ['domain in .env' => $values['CERT_DOMAIN'], 'domain in certificate' => $certificate['subject']['CN']]
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function generatedDomainDataProvider(): array
+    {
+        return [
+            'paths change after an earlier answer' => [
+                "OTHER=\nCERT_DOMAIN=old.example\nCERT_KEY_PATH=\nCERT_PATH=\${OTHER}certificate.pem\n",
+                "CERT_KEY_PATH=\${OTHER}key.pem\nCERT_PATH=\${OTHER}certificate.pem\n",
+            ],
+            'paths refer to the generated domain' => [
+                "OTHER=old-\nCERT_DOMAIN=old.example\nCERT_KEY_PATH=\nCERT_PATH=\n",
+                "CERT_KEY_PATH=\${CERT_DOMAIN}.pem\nCERT_PATH=\${CERT_DOMAIN}.crt\n",
+            ],
+            'paths refer indirectly to the generated domain' => [
+                "OTHER=old-\nCERT_DOMAIN=old.example\nPREFIX=\${CERT_DOMAIN}-\nCERT_KEY_PATH=\nCERT_PATH=\n",
+                "CERT_KEY_PATH=\${PREFIX}key.pem\nCERT_PATH=\${PREFIX}cert.pem\n",
+            ],
+        ];
     }
 
     /**

@@ -18,15 +18,15 @@ class InputOutputInteraction implements Interaction
         $this->output = $output;
     }
 
-    public function askConfirmation(string $question) : bool
+    public function askConfirmation(string $question): bool
     {
         return in_array(strtolower($this->ask($question, 'y')), ['y', 'yes']);
     }
 
-    public function ask(string $question, ?string $default = null) : string
+    public function ask(string $question, ?string $default = null): string
     {
         if (!$this->input->isInteractive()) {
-            if (null === $default) {
+            if ($default === null) {
                 throw new UnansweredQuestionException($question);
             }
 
@@ -35,7 +35,7 @@ class InputOutputInteraction implements Interaction
 
         do {
             $answer = (new QuestionHelper())->ask($this->input, $this->output, new Question($question, $default));
-        } while (null === $answer);
+        } while ($answer === null);
 
         return $answer;
     }

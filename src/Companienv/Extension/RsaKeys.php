@@ -32,8 +32,6 @@ class RsaKeys implements Extension
 
         $pathNames = array_slice($attribute->getVariableNames(), 0, 2);
 
-        // An existing pair is kept, and a declined one not generated, for the whole run: its variables are asked like
-        // any other, so that a path typed for one file does not make the pair look missing
         if (
             $companion->filesExistAtVariablePaths($block, $pathNames)
             || !$companion->askConfirmation(sprintf(
@@ -52,7 +50,12 @@ class RsaKeys implements Extension
 
         $fileSystem = $companion->getFileSystem();
         $passPhrase = $this->askPassPhrase($companion);
-        [$privateKeyPath, $publicKeyPath] = $companion->getVariablePaths($block, $pathNames);
+        $passPhraseVariableName = $attribute->getVariableNames()[2];
+        [$privateKeyPath, $publicKeyPath] = $companion->getVariablePaths(
+            $block,
+            $pathNames,
+            [$passPhraseVariableName => $passPhrase]
+        );
 
         try {
             (new Process(
@@ -80,7 +83,7 @@ class RsaKeys implements Extension
             ))->mustRun();
         } catch (ProcessRuntimeException $exception) {
             throw new RuntimeException(
-                'Could not have generated the RSA public/private key: '.$exception->getMessage(),
+                'Could not have generated the RSA public/private key: ' . $exception->getMessage(),
                 $exception->getCode()
             );
         }
@@ -90,9 +93,12 @@ class RsaKeys implements Extension
                 $block->getVariable($pathName)
             );
         }
-        $passPhraseVariableName = $attribute->getVariableNames()[2];
         $this->populatedVariables[$passPhraseVariableName] = $passPhrase;
         $companion->markValueAsLiteral($passPhraseVariableName);
+        $companion->recordGeneratedValues(array_intersect_key(
+            $this->populatedVariables,
+            array_flip($attribute->getVariableNames())
+        ));
 
         return $this->populatedVariables[$variable->getName()];
     }
@@ -122,13 +128,14 @@ class RsaKeys implements Extension
         Block $block,
         Variable $variable,
         ?string $currentValue = null
-    ) : int {
+    ): int {
         if (null === ($attribute = $block->getAttribute('rsa-pair', $variable))) {
             return Extension::ABSTAIN;
         }
 
         return $companion->filesExistAtVariablePaths($block, array_slice($attribute->getVariableNames(), 0, 2))
             ? Extension::ABSTAIN
-            : Extension::VARIABLE_REQUIRED;
+            : Extension::VARIABLE_REQUIRED
+        ;
     }
 }
