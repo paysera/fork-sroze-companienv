@@ -23,6 +23,10 @@ class Companion
     private $envContents = false;
     private $definedVariables = [];
     private $resolvedDistValues = [];
+    /**
+     * @var array<string, true>
+     */
+    private $skippedVariableNames;
 
     public function __construct(FileSystem $fileSystem, Interaction $interaction, Extension $extension, string $envFileName = '.env', string $distFileName = '.env.dist')
     {
@@ -31,6 +35,7 @@ class Companion
         $this->extension = $extension;
         $this->reference = (new Parser())->parse($fileSystem, $distFileName);
         $this->envFileName = $envFileName;
+        $this->skippedVariableNames = [];
     }
 
     public function fillGaps()
@@ -118,6 +123,26 @@ class Companion
      */
     private function getVariablesRequiringValues()
     {
+        $this->skippedVariableNames = [];
+        $missingVariables = $this->voteForVariables();
+        if ($this->hasSkippedVariables()) {
+            $this->resolvedDistValues = [];
+            $missingVariables = $this->voteForVariables();
+        }
+
+        return $missingVariables;
+    }
+
+    private function hasSkippedVariables(): bool
+    {
+        return count($this->skippedVariableNames) > 0;
+    }
+
+    /**
+     * @return MissingVariable[]
+     */
+    private function voteForVariables(): array
+    {
         $variablesInFile = $this->getDefinedVariablesHash();
         $missingVariables = [];
 
@@ -125,8 +150,11 @@ class Companion
             foreach ($block->getVariables() as $variable) {
                 $currentValue = isset($variablesInFile[$variable->getName()]) ? $variablesInFile[$variable->getName()] : null;
 
-                if ($this->extension->isVariableRequiringValue($this, $block, $variable, $currentValue) === Extension::VARIABLE_REQUIRED) {
+                $vote = $this->extension->isVariableRequiringValue($this, $block, $variable, $currentValue);
+                if ($vote === Extension::VARIABLE_REQUIRED) {
                     $missingVariables[$variable->getName()] = new MissingVariable($variable, $currentValue);
+                } elseif ($vote === Extension::VARIABLE_SKIP) {
+                    $this->skippedVariableNames[$variable->getName()] = true;
                 }
             }
         }
@@ -140,8 +168,8 @@ class Companion
             ? $this->fileSystem->getContents($this->envFileName)
             : null;
 
-        // Parsed, and the .env.dist values resolved, once for each .env content, so that a command in .env or in a
-        // .env.dist path does not run again until .env changes
+        // Parsed once for each .env content, so that a command in .env does not run again until .env changes. The
+        // .env.dist values are resolved again then, and for the second vote of a run that skips a variable
         if ($envContents !== $this->envContents) {
             // Dotenv 4.4.0 and 5.0.0 raise a notice for an undefined ${VAR}, which Composer turns into an exception
             $this->definedVariables = null === $envContents
@@ -204,9 +232,9 @@ class Companion
 
     /**
      * The .env.dist value as Dotenv will read it in .env, as written when Dotenv cannot read it. A variable it
-     * refers to has its .env value or, when .env does not set it, its .env.dist default before it, resolved the
-     * same way. When .env already has the variable, the value is written over its line and gets only the .env
-     * values above that line. Only those defaults are resolved, so the command of any other one does not run.
+     * refers to has its .env value or, when .env does not set it and no extension skips it, its .env.dist default
+     * before it, resolved the same way. When .env already has the variable, the value is written over its line and
+     * gets only the .env values above that line.
      */
     public function resolveDistValue(Variable $variable) : string
     {
@@ -245,7 +273,10 @@ class Companion
                         break 2;
                     }
 
-                    if (!array_key_exists($distVariable->getName(), $references)) {
+                    if (
+                        !array_key_exists($distVariable->getName(), $references)
+                        && !isset($this->skippedVariableNames[$distVariable->getName()])
+                    ) {
                         $references[$distVariable->getName()] = $distVariable;
                     }
                 }

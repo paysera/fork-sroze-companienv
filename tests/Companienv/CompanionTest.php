@@ -701,6 +701,26 @@ final class CompanionTest extends TestCase
         ];
     }
 
+    public function testFillGapsVotesAgainstTheEnvFileOfEachRun(): void
+    {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write('.env.dist', "MODE=prod\n## Keys\n#+only-if(DIR):(MODE=dev)\n"
+            . "#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\nDIR=keys\nKEY_PATH=private.pem\nPUB_PATH=\${DIR}/public.pem\n"
+            . "KEY_PASS=secret\n");
+        $fileSystem->write('.env', "MODE=prod\nKEY_PATH=private.pem\nKEY_PASS=secret\n");
+        $interaction = new InMemoryInteraction([self::FIX_QUESTION => ['n', 'n']]);
+        $companion = new Companion($fileSystem, $interaction, new Chained(Application::defaultExtensions()));
+
+        $companion->fillGaps();
+        $fileSystem->write('.env', "MODE=dev\nKEY_PATH=private.pem\nKEY_PASS=secret\n");
+        $fileSystem->write('private.pem', 'PRIVATE KEY');
+        $fileSystem->write('keys/public.pem', 'PUBLIC KEY');
+        $companion->fillGaps();
+
+        preg_match_all('/\((\d+) variables\)/', $interaction->getBuffer(), $counts);
+        $this->assertSame(['3', '2'], $counts[1]);
+    }
+
     public function testFillGapsOffersAPathOf0SetInTheEnvFileAsTheDefault(): void
     {
         $fileSystem = new InMemoryFileSystem();
@@ -722,6 +742,38 @@ final class CompanionTest extends TestCase
         $companion->fillGaps();
 
         $this->assertSame("KEY_PATH=0\nPUB_PATH=public.pem\nKEY_PASS=phrase\n", $fileSystem->getContents('.env'));
+    }
+
+    public function testFillGapsResolvesADistPathWithoutTheDefaultsThatAreSkipped(): void
+    {
+        $fileSystem = new InMemoryFileSystem();
+        $fileSystem->write(
+            '.env.dist',
+            "MODE=prod\n## Keys\n#+only-if(KEY_DIR):(MODE=dev)\n#+file-to-propagate(KEY_PATH)\n"
+                . "KEY_DIR=keys\nKEY_PATH=\${KEY_DIR}/target.pem\n"
+        );
+        $fileSystem->write('.env', "MODE=prod\n");
+        $fileSystem->write('/downloads/key.pem', 'DOWNLOADED');
+        $interaction = new InMemoryInteraction([
+            self::FIX_QUESTION => 'y',
+            self::FILE_QUESTION => '/downloads/key.pem',
+        ]);
+        $companion = new Companion($fileSystem, $interaction, new Chained(Application::defaultExtensions()));
+
+        $companion->fillGaps();
+
+        $this->assertSame(
+            [
+                '.env' => "MODE=prod\nKEY_PATH=\${KEY_DIR}/target.pem\n",
+                '/target.pem' => 'DOWNLOADED',
+                'keys/target.pem' => false,
+            ],
+            [
+                '.env' => $fileSystem->getContents('.env'),
+                '/target.pem' => $fileSystem->getContents('/target.pem'),
+                'keys/target.pem' => $fileSystem->exists('keys/target.pem'),
+            ]
+        );
     }
 
     public function testResolveDistValueReadsAReferenceToAQuotedCommandAsDotenvDoes(): void

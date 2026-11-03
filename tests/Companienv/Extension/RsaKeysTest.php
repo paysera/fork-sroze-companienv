@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Companienv\Extension;
 
+use Companienv\Application;
 use Companienv\Companion;
 use Companienv\DotEnv\Attribute;
 use Companienv\DotEnv\Block;
@@ -22,6 +23,7 @@ final class RsaKeysTest extends TestCase
     private const CONFIRMATION = 'Variables KEY_PATH and PUB_PATH and KEY_PASS represents an RSA public/private key. '
         . 'Do you want to automatically generate them? (y)';
     private const PASS_PHRASE_QUESTION = 'Enter pass phrase to protect the keys:';
+    private const FIX_QUESTION = 'Let\'s fix this? (y)';
     private const REPEATED_PASS_PHRASE_QUESTION = 'The pass phrase must be 4 to 1023 bytes long. '
         . self::PASS_PHRASE_QUESTION;
 
@@ -539,6 +541,48 @@ final class RsaKeysTest extends TestCase
     }
 
     /**
+     * @dataProvider skippedDefaultDataProvider
+     *
+     * @param array<string, string> $files
+     */
+    public function testFillGapsGeneratesTheKeyPairAtThePathsDotenvReads(
+        string $distFile,
+        string $env,
+        array $files
+    ): void {
+        foreach ($files as $name => $contents) {
+            file_put_contents($this->temporaryDirectory . '/' . $name, $contents);
+        }
+
+        $companion = $this->fillGaps($distFile, $env, 'new-phrase');
+
+        $this->assertSame([true, true], $this->readKeyPair($companion));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string, 2: array<string, string>}>
+     */
+    public static function skippedDefaultDataProvider(): array
+    {
+        $skipped = "MODE=prod\n## Keys\n#+only-if(KEY_PREFIX):(MODE=dev)\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n";
+        $paths = "KEY_PASS=\nKEY_PREFIX=old-\nKEY_PATH=\${KEY_PREFIX}private.pem\nPUB_PATH=\${KEY_PREFIX}public.pem\n";
+
+        return [
+            'skipped default in the pair, before its paths' => [$skipped . $paths, "MODE=prod\n", []],
+            'skipped default between the pair\'s paths' => [
+                $skipped . "KEY_PATH=private.pem\nKEY_PREFIX=old-\nPUB_PATH=\${KEY_PREFIX}public.pem\nKEY_PASS=\n",
+                "MODE=prod\n",
+                [],
+            ],
+            'other key files at the paths the skipped default gives' => [
+                $skipped . $paths,
+                "MODE=prod\nKEY_PASS=old-phrase\n",
+                ['old-private.pem' => 'OTHER PRIVATE KEY', 'old-public.pem' => 'OTHER PUBLIC KEY'],
+            ],
+        ];
+    }
+
+    /**
      * @return list<Variable>
      */
     private static function variables(
@@ -562,5 +606,39 @@ final class RsaKeysTest extends TestCase
     private function companion(InMemoryInteraction $interaction): Companion
     {
         return new Companion(new NativePhpFileSystem($this->temporaryDirectory), $interaction, new Chained());
+    }
+
+    private function fillGaps(string $distFile, string $env, string $passPhrase): Companion
+    {
+        file_put_contents($this->temporaryDirectory . '/.env.dist', $distFile);
+        file_put_contents($this->temporaryDirectory . '/.env', $env);
+        $companion = new Companion(
+            new NativePhpFileSystem($this->temporaryDirectory),
+            new InMemoryInteraction([
+                self::FIX_QUESTION => 'y',
+                self::CONFIRMATION => 'y',
+                self::PASS_PHRASE_QUESTION => $passPhrase,
+            ]),
+            new Chained(Application::defaultExtensions())
+        );
+        $companion->fillGaps();
+
+        return $companion;
+    }
+
+    /**
+     * @return array{0: bool, 1: bool}
+     */
+    private function readKeyPair(Companion $companion): array
+    {
+        $values = $companion->getDefinedVariablesHash();
+        $privateKeyPath = $this->temporaryDirectory . '/' . ($values['KEY_PATH'] ?? '');
+
+        return [
+            is_file($this->temporaryDirectory . '/' . ($values['PUB_PATH'] ?? '')),
+            is_file($privateKeyPath)
+                && openssl_pkey_get_private((string) file_get_contents($privateKeyPath), $values['KEY_PASS'] ?? '')
+                    !== false,
+        ];
     }
 }
