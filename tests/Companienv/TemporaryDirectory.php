@@ -6,6 +6,9 @@ namespace Companienv;
 
 trait TemporaryDirectory
 {
+    /**
+     * @var string|null
+     */
     private $temporaryDirectory;
 
     private function createTemporaryDirectory(): string
@@ -22,6 +25,16 @@ trait TemporaryDirectory
             unlink($this->temporaryDirectory . '/' . $name);
         }
         rmdir($this->temporaryDirectory);
+    }
+
+    /**
+     * @param array<string, string> $files
+     */
+    private function writeTemporaryFiles(array $files): void
+    {
+        foreach ($files as $name => $contents) {
+            file_put_contents($this->temporaryDirectory . '/' . $name, $contents);
+        }
     }
 
     /**

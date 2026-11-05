@@ -7,7 +7,7 @@ use RuntimeException;
 class InMemoryInteraction implements Interaction
 {
     /**
-     * @var array<string, string|list<string>>
+     * @var array<string, string>
      */
     private $answers;
 
@@ -16,7 +16,7 @@ class InMemoryInteraction implements Interaction
     private $buffer = '';
 
     /**
-     * @param array<string, string|list<string>> $answers
+     * @param array<string, string> $answers
      */
     public function __construct(array $answers = [], bool $interactive = true)
     {
@@ -42,17 +42,13 @@ class InMemoryInteraction implements Interaction
 
         if (!$this->interactive) {
             if ($default === null) {
-                throw new UnansweredQuestionException($question);
+                throw new UnansweredQuestionException();
             }
 
             return $default;
         }
 
-        if (is_array($this->answers[$normalizedKey] ?? null)) {
-            $answer = array_shift($this->answers[$normalizedKey]);
-        } else {
-            $answer = $this->answers[$normalizedKey] ?? null;
-        }
+        $answer = $this->answers[$normalizedKey] ?? null;
 
         if ($answer !== null) {
             return $answer;

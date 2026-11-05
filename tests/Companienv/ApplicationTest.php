@@ -29,7 +29,7 @@ final class ApplicationTest extends TestCase
     }
 
     /**
-     * @dataProvider extensionsDataProvider
+     * @dataProvider runDataProvider
      *
      * @param list<Extension>|null $extensions
      * @param list<Extension> $registeredExtensions
@@ -38,16 +38,12 @@ final class ApplicationTest extends TestCase
     {
         file_put_contents($this->temporaryDirectory . '/app.dist', "## Something\nMY_VARIABLE=default-value\n");
         $application = new Application($this->temporaryDirectory, $extensions);
-        foreach ($registeredExtensions as $extension) {
-            $application->registerExtension($extension);
-        }
+        $this->registerExtensions($application, $registeredExtensions);
         $application->setAutoExit(false);
+        $input = new ArrayInput(['--file' => 'app.env', '--dist-file' => 'app.dist', '--no-interaction' => true]);
         $output = new BufferedOutput();
 
-        $exitCode = $application->run(
-            new ArrayInput(['--file' => 'app.env', '--dist-file' => 'app.dist', '--no-interaction' => true]),
-            $output
-        );
+        $exitCode = $application->run($input, $output);
 
         $this->assertSame(
             [
@@ -55,10 +51,45 @@ final class ApplicationTest extends TestCase
                 'files' => ['app.dist' => "## Something\nMY_VARIABLE=default-value\n", 'app.env' => $expectedEnv],
                 'output' => 'It looks like you are missing some configuration (1 variables). '
                     . "I will help you to sort this out.\n"
-                    . "\nSomething\n\n",
+                    . "\nSomething\n\n"
+                ,
             ],
             ['exit code' => $exitCode, 'files' => $this->readTemporaryDirectory(), 'output' => $output->fetch()]
         );
+    }
+
+    /**
+     * @return iterable<string, array{
+     *     extensions: list<Extension>|null,
+     *     registeredExtensions: list<Extension>,
+     *     expectedEnv: string
+     * }>
+     */
+    public function runDataProvider(): iterable
+    {
+        $extension = new class () extends AbstractExtension {
+            public function getVariableValue(Companion $companion, Block $block, Variable $variable): string
+            {
+                return 'from-extension';
+            }
+        };
+        $askVariableValues = new AskVariableValues();
+
+        yield 'default extensions' => [
+            'extensions' => null,
+            'registeredExtensions' => [],
+            'expectedEnv' => "MY_VARIABLE=default-value\n",
+        ];
+        yield 'registered extension asked first' => [
+            'extensions' => null,
+            'registeredExtensions' => [$extension],
+            'expectedEnv' => "MY_VARIABLE=from-extension\n",
+        ];
+        yield 'extensions given to the constructor' => [
+            'extensions' => [$extension, $askVariableValues],
+            'registeredExtensions' => [],
+            'expectedEnv' => "MY_VARIABLE=from-extension\n",
+        ];
     }
 
     public function testCommands(): void
@@ -79,9 +110,10 @@ final class ApplicationTest extends TestCase
     {
         $application = new Application($this->temporaryDirectory);
         $application->setAutoExit(false);
+        $input = new ArrayInput(['--version' => true]);
         $output = new BufferedOutput();
 
-        $exitCode = $application->run(new ArrayInput(['--version' => true]), $output);
+        $exitCode = $application->run($input, $output);
 
         $this->assertSame(
             ['exit code' => 0, 'output' => "Companienv 0.1.x-dev\n"],
@@ -90,7 +122,7 @@ final class ApplicationTest extends TestCase
     }
 
     /**
-     * @dataProvider companionResultDataProvider
+     * @dataProvider runExitsWithTheCompanionResultAsSymfony34And44ReadItDataProvider
      *
      * @param mixed $result
      */
@@ -119,24 +151,26 @@ final class ApplicationTest extends TestCase
         };
         $application->setAutoExit(false);
         $application->setCatchExceptions(false);
+        $input = new ArrayInput([]);
+        $output = new BufferedOutput();
 
-        $this->assertSame($expectedExitCode, $application->run(new ArrayInput([]), new BufferedOutput()));
+        $exitCode = $application->run($input, $output);
+
+        $this->assertSame($expectedExitCode, $exitCode);
     }
 
     /**
-     * @return array<string, array{0: mixed, 1: int}>
+     * @return iterable<string, array{result: mixed, expectedExitCode: int}>
      */
-    public static function companionResultDataProvider(): array
+    public function runExitsWithTheCompanionResultAsSymfony34And44ReadItDataProvider(): iterable
     {
-        return [
-            'nothing' => [null, 0],
-            'an integer' => [3, 3],
-            'a numeric string' => ['7', 7],
-            'a float' => [2.9, 2],
-            'true' => [true, 0],
-            'a string with a numeric prefix' => ['12abc', 0],
-            'an array' => [[1], 0],
-        ];
+        yield 'nothing' => ['result' => null, 'expectedExitCode' => 0];
+        yield 'an integer' => ['result' => 3, 'expectedExitCode' => 3];
+        yield 'a numeric string' => ['result' => '7', 'expectedExitCode' => 7];
+        yield 'a float' => ['result' => 2.9, 'expectedExitCode' => 2];
+        yield 'true' => ['result' => true, 'expectedExitCode' => 0];
+        yield 'a string with a numeric prefix' => ['result' => '12abc', 'expectedExitCode' => 0];
+        yield 'an array' => ['result' => [1], 'expectedExitCode' => 0];
     }
 
     public function testNamingAnotherCommandIsRefused(): void
@@ -144,11 +178,10 @@ final class ApplicationTest extends TestCase
         file_put_contents($this->temporaryDirectory . '/.env.dist', "MY_VARIABLE=default-value\n");
         $application = new Application($this->temporaryDirectory);
         $application->setAutoExit(false);
+        $input = new ArrayInput(['command' => 'list', '--no-interaction' => true]);
+        $output = new BufferedOutput();
 
-        $exitCode = $application->run(
-            new ArrayInput(['command' => 'list', '--no-interaction' => true]),
-            new BufferedOutput()
-        );
+        $exitCode = $application->run($input, $output);
 
         $this->assertSame(
             ['exit code' => 1, 'files' => ['.env.dist' => "MY_VARIABLE=default-value\n"]],
@@ -163,8 +196,10 @@ final class ApplicationTest extends TestCase
         $application = new Application($this->temporaryDirectory);
         $application->setAutoExit(false);
         $application->setCatchExceptions(false);
+        $input = new ArrayInput(['--no-interaction' => true]);
+        $output = new BufferedOutput();
 
-        $exitCode = $application->run(new ArrayInput(['--no-interaction' => true]), new BufferedOutput());
+        $exitCode = $application->run($input, $output);
 
         $this->assertSame(
             ['exit code' => 0, 'files' => ['.env' => $distFile, '.env.dist' => $distFile]],
@@ -173,25 +208,12 @@ final class ApplicationTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: list<Extension>|null, 1: list<Extension>, 2: string}>
+     * @param list<Extension> $extensions
      */
-    public static function extensionsDataProvider(): array
+    private function registerExtensions(Application $application, array $extensions): void
     {
-        $extension = new class () extends AbstractExtension {
-            public function getVariableValue(Companion $companion, Block $block, Variable $variable): string
-            {
-                return 'from-extension';
-            }
-        };
-
-        return [
-            'default extensions' => [null, [], "MY_VARIABLE=default-value\n"],
-            'registered extension asked first' => [null, [$extension], "MY_VARIABLE=from-extension\n"],
-            'extensions given to the constructor' => [
-                [$extension, new AskVariableValues()],
-                [],
-                "MY_VARIABLE=from-extension\n",
-            ],
-        ];
+        foreach ($extensions as $extension) {
+            $application->registerExtension($extension);
+        }
     }
 }

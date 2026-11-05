@@ -19,7 +19,7 @@ final class InteractionViaComposerTest extends TestCase
     /**
      * @dataProvider interactionDataProvider
      *
-     * @param callable(InteractionViaComposer): (bool|string|null) $act
+     * @param (callable(InteractionViaComposer): (bool|string))|(callable(InteractionViaComposer): void) $act
      * @param bool|string|array<string, string>|null $expectedResult
      */
     public function testInteraction(
@@ -35,12 +35,16 @@ final class InteractionViaComposerTest extends TestCase
         $input = new ArrayInput([]);
         $input->setInteractive($interactive);
         $input->setStream($inputStream);
-        $output = new StreamOutput(fopen('php://memory', 'r+'), OutputInterface::VERBOSITY_NORMAL, false);
+        $outputStream = fopen('php://memory', 'r+');
+        $output = new StreamOutput($outputStream, OutputInterface::VERBOSITY_NORMAL, false);
 
-        $io = new ConsoleIO($input, $output, new HelperSet([new QuestionHelper()]));
+        $questionHelper = new QuestionHelper();
+        $helperSet = new HelperSet([$questionHelper]);
+        $io = new ConsoleIO($input, $output, $helperSet);
+        $interaction = new InteractionViaComposer($io);
 
         try {
-            $result = $act(new InteractionViaComposer($io));
+            $result = $act($interaction);
         } catch (RuntimeException $exception) {
             $result = [get_class($exception) => $exception->getMessage()];
         }
@@ -53,91 +57,129 @@ final class InteractionViaComposerTest extends TestCase
     }
 
     /**
-     * @return array<string, array{
-     *     0: bool,
-     *     1: string,
-     *     2: callable(InteractionViaComposer): (bool|string|null),
-     *     3: bool|string|array<string, string>|null,
-     *     4: string
+     * @return iterable<string, array{
+     *     interactive: bool,
+     *     answers: string,
+     *     act: (callable(InteractionViaComposer): (bool|string))|(callable(InteractionViaComposer): void),
+     *     expectedResult: bool|string|array<string, string>|null,
+     *     expectedOutput: string
      * }>
      */
-    public static function interactionDataProvider(): array
+    public function interactionDataProvider(): iterable
     {
-        $confirm = static function (InteractionViaComposer $interaction) {
+        $confirm = static function (InteractionViaComposer $interaction): bool {
             return $interaction->askConfirmation("Let's fix this? (y) ");
         };
-        $ask = static function (InteractionViaComposer $interaction) {
+        $ask = static function (InteractionViaComposer $interaction): string {
             return $interaction->ask('MY_VARIABLE ? ', 'default-value');
         };
-        $askWithoutDefault = static function (InteractionViaComposer $interaction) {
+        $askWithoutDefault = static function (InteractionViaComposer $interaction): string {
             return $interaction->ask('<comment>MY_VARIABLE</comment> ? ');
         };
-        $askWithEmptyDefault = static function (InteractionViaComposer $interaction) {
+        $askWithEmptyDefault = static function (InteractionViaComposer $interaction): string {
             return $interaction->ask('MY_VARIABLE ? ', '');
         };
 
-        return [
-            'interactive confirmation accepted' => [true, "y\n", $confirm, true, "Let's fix this? (y) "],
-            'interactive confirmation declined' => [true, "n\n", $confirm, false, "Let's fix this? (y) "],
-            'non-interactive confirmation' => [
-                false,
-                '',
-                $confirm,
-                true,
-                "Automatically confirmed in non-interactive mode\n",
+        yield 'interactive confirmation accepted' => [
+            'interactive' => true,
+            'answers' => "y\n",
+            'act' => $confirm,
+            'expectedResult' => true,
+            'expectedOutput' => "Let's fix this? (y) ",
+        ];
+
+        yield 'interactive confirmation declined' => [
+            'interactive' => true,
+            'answers' => "n\n",
+            'act' => $confirm,
+            'expectedResult' => false,
+            'expectedOutput' => "Let's fix this? (y) ",
+        ];
+
+        yield 'non-interactive confirmation' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $confirm,
+            'expectedResult' => true,
+            'expectedOutput' => "Automatically confirmed in non-interactive mode\n",
+        ];
+
+        yield 'interactive answer' => [
+            'interactive' => true,
+            'answers' => "my-value\n",
+            'act' => $ask,
+            'expectedResult' => 'my-value',
+            'expectedOutput' => 'MY_VARIABLE ? ',
+        ];
+
+        yield 'interactive empty answer' => [
+            'interactive' => true,
+            'answers' => "\n",
+            'act' => $ask,
+            'expectedResult' => 'default-value',
+            'expectedOutput' => 'MY_VARIABLE ? ',
+        ];
+
+        yield 'interactive empty answer to an empty default' => [
+            'interactive' => true,
+            'answers' => "\n",
+            'act' => $askWithEmptyDefault,
+            'expectedResult' => '',
+            'expectedOutput' => 'MY_VARIABLE ? ',
+        ];
+
+        yield 'interactive empty answer, then an answer, without a default' => [
+            'interactive' => true,
+            'answers' => "\nmy-value\n",
+            'act' => $askWithoutDefault,
+            'expectedResult' => 'my-value',
+            'expectedOutput' => 'MY_VARIABLE ? MY_VARIABLE ? ',
+        ];
+
+        yield 'non-interactive answer' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $ask,
+            'expectedResult' => 'default-value',
+            'expectedOutput' => "Automatically returned \"default-value\" in non-interactive mode\n",
+        ];
+
+        yield 'non-interactive answer without a default' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $askWithoutDefault,
+            'expectedResult' => [
+                UnansweredQuestionException::class => 'Cannot answer a question without a default in non-interactive mode.',
             ],
-            'interactive answer' => [true, "my-value\n", $ask, 'my-value', 'MY_VARIABLE ? '],
-            'interactive empty answer' => [true, "\n", $ask, 'default-value', 'MY_VARIABLE ? '],
-            'interactive empty answer to an empty default' => [true, "\n", $askWithEmptyDefault, '', 'MY_VARIABLE ? '],
-            'interactive empty answer, then an answer, without a default' => [
-                true,
-                "\nmy-value\n",
-                $askWithoutDefault,
-                'my-value',
-                'MY_VARIABLE ? MY_VARIABLE ? ',
-            ],
-            'non-interactive answer' => [
-                false,
-                '',
-                $ask,
-                'default-value',
-                "Automatically returned \"default-value\" in non-interactive mode\n",
-            ],
-            'non-interactive answer without a default' => [
-                false,
-                '',
-                $askWithoutDefault,
-                [
-                    UnansweredQuestionException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
-                        . 'the question has no default.',
-                ],
-                '',
-            ],
-            'non-interactive empty default' => [
-                false,
-                '',
-                $askWithEmptyDefault,
-                '',
-                "Automatically returned \"\" in non-interactive mode\n",
-            ],
-            'one line written' => [
-                false,
-                '',
-                static function (InteractionViaComposer $interaction) {
-                    return $interaction->writeln('<info>A message</info>');
-                },
-                null,
-                "A message\n",
-            ],
-            'several lines written' => [
-                false,
-                '',
-                static function (InteractionViaComposer $interaction) {
-                    return $interaction->writeln(['', 'A message']);
-                },
-                null,
-                "\nA message\n",
-            ],
+            'expectedOutput' => "MY_VARIABLE ? \n",
+        ];
+
+        yield 'non-interactive empty default' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $askWithEmptyDefault,
+            'expectedResult' => '',
+            'expectedOutput' => "Automatically returned \"\" in non-interactive mode\n",
+        ];
+
+        yield 'one line written' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => static function (InteractionViaComposer $interaction): void {
+                $interaction->writeln('<info>A message</info>');
+            },
+            'expectedResult' => null,
+            'expectedOutput' => "A message\n",
+        ];
+
+        yield 'several lines written' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => static function (InteractionViaComposer $interaction): void {
+                $interaction->writeln(['', 'A message']);
+            },
+            'expectedResult' => null,
+            'expectedOutput' => "\nA message\n",
         ];
     }
 }

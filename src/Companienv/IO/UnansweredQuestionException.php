@@ -8,11 +8,8 @@ use RuntimeException;
 
 class UnansweredQuestionException extends RuntimeException
 {
-    public function __construct(string $question)
+    public function __construct()
     {
-        parent::__construct(sprintf(
-            'Cannot answer "%s" in non-interactive mode: the question has no default.',
-            trim(strip_tags($question))
-        ));
+        parent::__construct('Cannot answer a question without a default in non-interactive mode.');
     }
 }

@@ -15,7 +15,7 @@ final class InputOutputInteractionTest extends TestCase
     /**
      * @dataProvider interactionDataProvider
      *
-     * @param callable(InputOutputInteraction): (bool|string|null) $act
+     * @param (callable(InputOutputInteraction): (bool|string))|(callable(InputOutputInteraction): void) $act
      * @param bool|string|array<string, string>|null $expectedResult
      */
     public function testInteraction(
@@ -31,10 +31,13 @@ final class InputOutputInteractionTest extends TestCase
         $input = new ArrayInput([]);
         $input->setInteractive($interactive);
         $input->setStream($inputStream);
-        $output = new StreamOutput(fopen('php://memory', 'r+'), OutputInterface::VERBOSITY_NORMAL, false);
+        $outputStream = fopen('php://memory', 'r+');
+        $output = new StreamOutput($outputStream, OutputInterface::VERBOSITY_NORMAL, false);
+
+        $interaction = new InputOutputInteraction($input, $output);
 
         try {
-            $result = $act(new InputOutputInteraction($input, $output));
+            $result = $act($interaction);
         } catch (RuntimeException $exception) {
             $result = [get_class($exception) => $exception->getMessage()];
         }
@@ -47,79 +50,156 @@ final class InputOutputInteractionTest extends TestCase
     }
 
     /**
-     * @return array<string, array{
-     *     0: bool,
-     *     1: string,
-     *     2: callable(InputOutputInteraction): (bool|string|null),
-     *     3: bool|string|array<string, string>|null,
-     *     4: string
+     * @return iterable<string, array{
+     *     interactive: bool,
+     *     answers: string,
+     *     act: (callable(InputOutputInteraction): (bool|string))|(callable(InputOutputInteraction): void),
+     *     expectedResult: bool|string|array<string, string>|null,
+     *     expectedOutput: string
      * }>
      */
-    public static function interactionDataProvider(): array
+    public function interactionDataProvider(): iterable
     {
-        $confirm = static function (InputOutputInteraction $interaction) {
+        $confirm = static function (InputOutputInteraction $interaction): bool {
             return $interaction->askConfirmation("Let's fix this? (y) ");
         };
-        $ask = static function (InputOutputInteraction $interaction) {
+        $ask = static function (InputOutputInteraction $interaction): string {
             return $interaction->ask('MY_VARIABLE ? ', 'default-value');
         };
-        $askFalsy = static function (InputOutputInteraction $interaction) {
+        $askFalsy = static function (InputOutputInteraction $interaction): string {
             return $interaction->ask('COUNT ? ', '0');
         };
-        $askWithoutDefault = static function (InputOutputInteraction $interaction) {
+        $askWithoutDefault = static function (InputOutputInteraction $interaction): string {
             return $interaction->ask('<comment>MY_VARIABLE</comment> ? ');
         };
-        $askWithEmptyDefault = static function (InputOutputInteraction $interaction) {
+        $askWithEmptyDefault = static function (InputOutputInteraction $interaction): string {
             return $interaction->ask('MY_VARIABLE ? ', '');
         };
 
-        return [
-            'non-interactive answer' => [false, '', $ask, 'default-value', ''],
-            'non-interactive falsy answer' => [false, '', $askFalsy, '0', ''],
-            'non-interactive answer without a default' => [
-                false,
-                '',
-                $askWithoutDefault,
-                [
-                    UnansweredQuestionException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
-                        . 'the question has no default.',
-                ],
-                '',
+        yield 'non-interactive answer' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $ask,
+            'expectedResult' => 'default-value',
+            'expectedOutput' => '',
+        ];
+
+        yield 'non-interactive falsy answer' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $askFalsy,
+            'expectedResult' => '0',
+            'expectedOutput' => '',
+        ];
+
+        yield 'non-interactive answer without a default' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $askWithoutDefault,
+            'expectedResult' => [
+                UnansweredQuestionException::class => 'Cannot answer a question without a default in non-interactive mode.',
             ],
-            'non-interactive empty default' => [false, '', $askWithEmptyDefault, '', ''],
-            'interactive answer' => [true, "my-value\n", $ask, 'my-value', 'MY_VARIABLE ? '],
-            'interactive empty answer' => [true, "\n", $ask, 'default-value', 'MY_VARIABLE ? '],
-            'interactive empty answer to an empty default' => [true, "\n", $askWithEmptyDefault, '', 'MY_VARIABLE ? '],
-            'interactive answer after an empty one without a default' => [
-                true,
-                "\nmy-value\n",
-                $askWithoutDefault,
-                'my-value',
-                'MY_VARIABLE ? MY_VARIABLE ? ',
-            ],
-            'non-interactive confirmation' => [false, '', $confirm, true, ''],
-            'interactive confirmation with y' => [true, "y\n", $confirm, true, "Let's fix this? (y) "],
-            'interactive confirmation with YES' => [true, "YES\n", $confirm, true, "Let's fix this? (y) "],
-            'interactive confirmation with an empty answer' => [true, "\n", $confirm, true, "Let's fix this? (y) "],
-            'interactive confirmation with n' => [true, "n\n", $confirm, false, "Let's fix this? (y) "],
-            'one line written' => [
-                false,
-                '',
-                static function (InputOutputInteraction $interaction) {
-                    return $interaction->writeln('<info>A message</info>');
-                },
-                null,
-                "A message\n",
-            ],
-            'several lines written' => [
-                false,
-                '',
-                static function (InputOutputInteraction $interaction) {
-                    return $interaction->writeln(['', 'A message']);
-                },
-                null,
-                "\nA message\n",
-            ],
+            'expectedOutput' => "MY_VARIABLE ? \n",
+        ];
+
+        yield 'non-interactive empty default' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $askWithEmptyDefault,
+            'expectedResult' => '',
+            'expectedOutput' => '',
+        ];
+
+        yield 'interactive answer' => [
+            'interactive' => true,
+            'answers' => "my-value\n",
+            'act' => $ask,
+            'expectedResult' => 'my-value',
+            'expectedOutput' => 'MY_VARIABLE ? ',
+        ];
+
+        yield 'interactive empty answer' => [
+            'interactive' => true,
+            'answers' => "\n",
+            'act' => $ask,
+            'expectedResult' => 'default-value',
+            'expectedOutput' => 'MY_VARIABLE ? ',
+        ];
+
+        yield 'interactive empty answer to an empty default' => [
+            'interactive' => true,
+            'answers' => "\n",
+            'act' => $askWithEmptyDefault,
+            'expectedResult' => '',
+            'expectedOutput' => 'MY_VARIABLE ? ',
+        ];
+
+        yield 'interactive answer after an empty one without a default' => [
+            'interactive' => true,
+            'answers' => "\nmy-value\n",
+            'act' => $askWithoutDefault,
+            'expectedResult' => 'my-value',
+            'expectedOutput' => 'MY_VARIABLE ? MY_VARIABLE ? ',
+        ];
+
+        yield 'non-interactive confirmation' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => $confirm,
+            'expectedResult' => true,
+            'expectedOutput' => '',
+        ];
+
+        yield 'interactive confirmation with y' => [
+            'interactive' => true,
+            'answers' => "y\n",
+            'act' => $confirm,
+            'expectedResult' => true,
+            'expectedOutput' => "Let's fix this? (y) ",
+        ];
+
+        yield 'interactive confirmation with YES' => [
+            'interactive' => true,
+            'answers' => "YES\n",
+            'act' => $confirm,
+            'expectedResult' => true,
+            'expectedOutput' => "Let's fix this? (y) ",
+        ];
+
+        yield 'interactive confirmation with an empty answer' => [
+            'interactive' => true,
+            'answers' => "\n",
+            'act' => $confirm,
+            'expectedResult' => true,
+            'expectedOutput' => "Let's fix this? (y) ",
+        ];
+
+        yield 'interactive confirmation with n' => [
+            'interactive' => true,
+            'answers' => "n\n",
+            'act' => $confirm,
+            'expectedResult' => false,
+            'expectedOutput' => "Let's fix this? (y) ",
+        ];
+
+        yield 'one line written' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => static function (InputOutputInteraction $interaction): void {
+                $interaction->writeln('<info>A message</info>');
+            },
+            'expectedResult' => null,
+            'expectedOutput' => "A message\n",
+        ];
+
+        yield 'several lines written' => [
+            'interactive' => false,
+            'answers' => '',
+            'act' => static function (InputOutputInteraction $interaction): void {
+                $interaction->writeln(['', 'A message']);
+            },
+            'expectedResult' => null,
+            'expectedOutput' => "\nA message\n",
         ];
     }
 }

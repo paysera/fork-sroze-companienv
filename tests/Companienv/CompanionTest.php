@@ -23,13 +23,12 @@ final class CompanionTest extends TestCase
         ?string $expectedEnv,
         string $expectedOutput
     ): void {
-        $fileSystem = new InMemoryFileSystem();
-        foreach ($files as $path => $contents) {
-            $fileSystem->write($path, $contents);
-        }
+        $fileSystem = $this->createFileSystem($files);
         $interaction = new InMemoryInteraction($answers);
+        $extensions = new Chained(Application::defaultExtensions());
+        $companion = new Companion($fileSystem, $interaction, $extensions);
 
-        (new Companion($fileSystem, $interaction, new Chained(Application::defaultExtensions())))->fillGaps();
+        $companion->fillGaps();
 
         $this->assertSame(
             ['.env' => $expectedEnv, 'output' => $expectedOutput],
@@ -41,80 +40,98 @@ final class CompanionTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: array<string, string>, 1: array<string, string>, 2: string|null, 3: string}>
+     * @return iterable<string, array{
+     *     files: array<string, string>,
+     *     answers: array<string, string>,
+     *     expectedEnv: string|null,
+     *     expectedOutput: string
+     * }>
      */
-    public static function fillGapsDataProvider(): array
+    public function fillGapsDataProvider(): iterable
     {
         $missingOne = 'It looks like you are missing some configuration (1 variables). '
             . "I will help you to sort this out.\n"
             . "Let's fix this? (y)\n"
         ;
 
-        return [
-            'no env file: every variable is asked and written' => [
-                ['.env.dist' => "## Something\n# With more details\nMY_VARIABLE=default-value\nOTHER_VARIABLE=\n"],
-                [
-                    "Let's fix this? (y)" => 'y',
-                    'MY_VARIABLE ? (default-value)' => 'my-value',
-                    'OTHER_VARIABLE ?' => 'other-value',
-                ],
-                "MY_VARIABLE=my-value\nOTHER_VARIABLE=other-value\n",
-                "It looks like you are missing some configuration (2 variables). I will help you to sort this out.\n"
+        yield 'no env file: every variable is asked and written' => [
+            'files' => ['.env.dist' => "## Something\n# With more details\nMY_VARIABLE=default-value\nOTHER_VARIABLE=\n"],
+            'answers' => [
+                "Let's fix this? (y)" => 'y',
+                'MY_VARIABLE ? (default-value)' => 'my-value',
+                'OTHER_VARIABLE ?' => 'other-value',
+            ],
+            'expectedEnv' => "MY_VARIABLE=my-value\nOTHER_VARIABLE=other-value\n",
+            'expectedOutput' => "It looks like you are missing some configuration (2 variables). I will help you to sort this out.\n"
                 . "Let's fix this? (y)\n\n<info>Something</info>\nWith more details\n\n"
-                . "MY_VARIABLE ? (default-value)\nOTHER_VARIABLE ?\n",
-            ],
-            'env file: only the missing variable is asked and appended' => [
-                [
-                    '.env.dist' => "## Something\nMY_VARIABLE=default-value\nA_NEW_VARIABLE=\n",
-                    '.env' => "MY_VARIABLE=something-else\n",
-                ],
-                ["Let's fix this? (y)" => 'y', 'A_NEW_VARIABLE ?' => 'value'],
-                "MY_VARIABLE=something-else\nA_NEW_VARIABLE=value\n",
-                $missingOne . "\n<info>Something</info>\n\nA_NEW_VARIABLE ?\n",
-            ],
-            'block without missing variables: skipped' => [
-                [
-                    '.env.dist' => "## Complete\nMY_VARIABLE=default-value\n## Incomplete\nA_NEW_VARIABLE=\n",
-                    '.env' => "MY_VARIABLE=something-else\n",
-                ],
-                ["Let's fix this? (y)" => 'y', 'A_NEW_VARIABLE ?' => 'value'],
-                "MY_VARIABLE=something-else\nA_NEW_VARIABLE=value\n",
-                $missingOne . "\n<info>Incomplete</info>\n\nA_NEW_VARIABLE ?\n",
-            ],
-            'empty value with a non-empty reference: asked again and updated in place' => [
-                [
-                    '.env.dist' => "MY_VARIABLE=default-value\nOTHER_VARIABLE=kept\n",
-                    '.env' => "MY_VARIABLE=\nOTHER_VARIABLE=kept\n",
-                ],
-                ["Let's fix this? (y)" => 'y', 'MY_VARIABLE ? (default-value)' => 'my-value'],
-                "MY_VARIABLE=my-value\nOTHER_VARIABLE=kept\n",
-                $missingOne . "\nMY_VARIABLE ? (default-value)\n",
-            ],
-            'empty value with an empty reference: nothing is asked' => [
-                ['.env.dist' => "EMPTY_VARIABLE=\n", '.env' => "EMPTY_VARIABLE=\n"],
-                [],
-                "EMPTY_VARIABLE=\n",
-                '',
-            ],
-            'falsy value: kept' => [
-                ['.env.dist' => "MY_VARIABLE=default-value\n", '.env' => "MY_VARIABLE=0\n"],
-                [],
-                "MY_VARIABLE=0\n",
-                '',
-            ],
-            'value containing an equals sign' => [
-                ['.env.dist' => "A_BASE64_VALUE=abc123=\n", '.env' => "A_BASE64_VALUE=\n"],
-                ["Let's fix this? (y)" => 'y', 'A_BASE64_VALUE ? (abc123=)' => 'abc123='],
-                "A_BASE64_VALUE=abc123=\n",
-                $missingOne . "\nA_BASE64_VALUE ? (abc123=)\n",
-            ],
-            'confirmation declined: nothing is written' => [
-                ['.env.dist' => "MY_VARIABLE=default-value\n"],
-                ["Let's fix this? (y)" => 'n'],
-                null,
-                $missingOne . "\n<comment>I let you think about it then. "
-                    . "Re-run the command to get started again.</comment>\n\n",
-            ],
+                . "MY_VARIABLE ? (default-value)\nOTHER_VARIABLE ?\n"
+            ,
         ];
+        yield 'env file: only the missing variable is asked and appended' => [
+            'files' => [
+                '.env.dist' => "## Something\nMY_VARIABLE=default-value\nA_NEW_VARIABLE=\n",
+                '.env' => "MY_VARIABLE=something-else\n",
+            ],
+            'answers' => ["Let's fix this? (y)" => 'y', 'A_NEW_VARIABLE ?' => 'value'],
+            'expectedEnv' => "MY_VARIABLE=something-else\nA_NEW_VARIABLE=value\n",
+            'expectedOutput' => $missingOne . "\n<info>Something</info>\n\nA_NEW_VARIABLE ?\n",
+        ];
+        yield 'block without missing variables: skipped' => [
+            'files' => [
+                '.env.dist' => "## Complete\nMY_VARIABLE=default-value\n## Incomplete\nA_NEW_VARIABLE=\n",
+                '.env' => "MY_VARIABLE=something-else\n",
+            ],
+            'answers' => ["Let's fix this? (y)" => 'y', 'A_NEW_VARIABLE ?' => 'value'],
+            'expectedEnv' => "MY_VARIABLE=something-else\nA_NEW_VARIABLE=value\n",
+            'expectedOutput' => $missingOne . "\n<info>Incomplete</info>\n\nA_NEW_VARIABLE ?\n",
+        ];
+        yield 'empty value with a non-empty reference: asked again and updated in place' => [
+            'files' => [
+                '.env.dist' => "MY_VARIABLE=default-value\nOTHER_VARIABLE=kept\n",
+                '.env' => "MY_VARIABLE=\nOTHER_VARIABLE=kept\n",
+            ],
+            'answers' => ["Let's fix this? (y)" => 'y', 'MY_VARIABLE ? (default-value)' => 'my-value'],
+            'expectedEnv' => "MY_VARIABLE=my-value\nOTHER_VARIABLE=kept\n",
+            'expectedOutput' => $missingOne . "\nMY_VARIABLE ? (default-value)\n",
+        ];
+        yield 'empty value with an empty reference: nothing is asked' => [
+            'files' => ['.env.dist' => "EMPTY_VARIABLE=\n", '.env' => "EMPTY_VARIABLE=\n"],
+            'answers' => [],
+            'expectedEnv' => "EMPTY_VARIABLE=\n",
+            'expectedOutput' => '',
+        ];
+        yield 'falsy value: kept' => [
+            'files' => ['.env.dist' => "MY_VARIABLE=default-value\n", '.env' => "MY_VARIABLE=0\n"],
+            'answers' => [],
+            'expectedEnv' => "MY_VARIABLE=0\n",
+            'expectedOutput' => '',
+        ];
+        yield 'value containing an equals sign' => [
+            'files' => ['.env.dist' => "A_BASE64_VALUE=abc123=\n", '.env' => "A_BASE64_VALUE=\n"],
+            'answers' => ["Let's fix this? (y)" => 'y', 'A_BASE64_VALUE ? (abc123=)' => 'abc123='],
+            'expectedEnv' => "A_BASE64_VALUE=abc123=\n",
+            'expectedOutput' => $missingOne . "\nA_BASE64_VALUE ? (abc123=)\n",
+        ];
+        yield 'confirmation declined: nothing is written' => [
+            'files' => ['.env.dist' => "MY_VARIABLE=default-value\n"],
+            'answers' => ["Let's fix this? (y)" => 'n'],
+            'expectedEnv' => null,
+            'expectedOutput' => $missingOne . "\n<comment>I let you think about it then. "
+                . "Re-run the command to get started again.</comment>\n\n"
+            ,
+        ];
+    }
+
+    /**
+     * @param array<string, string> $files
+     */
+    private function createFileSystem(array $files): InMemoryFileSystem
+    {
+        $fileSystem = new InMemoryFileSystem();
+        foreach ($files as $path => $contents) {
+            $fileSystem->write($path, $contents);
+        }
+
+        return $fileSystem;
     }
 }

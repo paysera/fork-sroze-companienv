@@ -10,78 +10,112 @@ use RuntimeException;
 final class InMemoryInteractionTest extends TestCase
 {
     /**
-     * @dataProvider answersDataProvider
+     * @dataProvider askDataProvider
      *
-     * @param array<string, string|list<string>> $answers
-     * @param list<string|array<string, string>> $expectedResults
+     * @param array<string, string> $answers
+     * @param string|array<string, string> $expectedResult
      */
     public function testAsk(
         array $answers,
-        int $questions,
-        array $expectedResults,
+        $expectedResult,
         ?string $default = null,
         bool $interactive = true
     ): void {
         $interaction = new InMemoryInteraction($answers, $interactive);
 
-        $results = [];
-        for ($asked = 0; $asked < $questions; $asked++) {
-            try {
-                $results[] = $interaction->ask('<comment>Question</comment>? ', $default);
-            } catch (RuntimeException $exception) {
-                $results[] = [get_class($exception) => $exception->getMessage()];
-            }
+        try {
+            $result = $interaction->ask('<comment>Question</comment>? ', $default);
+        } catch (RuntimeException $exception) {
+            $result = [get_class($exception) => $exception->getMessage()];
         }
 
-        $this->assertSame($expectedResults, $results);
+        $this->assertSame($expectedResult, $result);
     }
 
     /**
-     * @return array<string, array{
-     *     0: array<string, string|list<string>>,
-     *     1: int,
-     *     2: list<string|array<string, string>>,
-     *     3?: string|null,
-     *     4?: bool
+     * @return iterable<string, array{
+     *     answers: array<string, string>,
+     *     expectedResult: string|array<string, string>,
+     *     default: string|null,
+     *     interactive: bool
      * }>
      */
-    public static function answersDataProvider(): array
+    public function askDataProvider(): iterable
     {
         $noAnswer = [RuntimeException::class => 'No answer for question "Question?"'];
         $unanswered = [
-            UnansweredQuestionException::class => 'Cannot answer "Question?" in non-interactive mode: '
-                . 'the question has no default.',
+            UnansweredQuestionException::class => 'Cannot answer a question without a default in non-interactive mode.',
         ];
 
-        return [
-            'one answer, asked twice' => [['Question?' => 'yes'], 2, ['yes', 'yes']],
-            'a list of answers, served in order' => [['Question?' => ['first', 'second']], 2, ['first', 'second']],
-            'a list of answers that runs out' => [['Question?' => ['first']], 2, ['first', $noAnswer]],
-            'no answer' => [[], 1, [$noAnswer]],
-            'no answer, a default: still unexpected' => [[], 1, [$noAnswer], 'default'],
-            'an answer over the default' => [['Question?' => 'yes'], 1, ['yes'], 'default'],
-            'without interaction, no answer: the default' => [[], 1, ['default'], 'default', false],
-            'without interaction, no answer and no default' => [[], 1, [$unanswered], null, false],
-            'without interaction, an answer is ignored' => [['Question?' => 'yes'], 1, ['default'], 'default', false],
-            'without interaction, an answer cannot replace a missing default' => [
-                ['Question?' => 'yes'],
-                1,
-                [$unanswered],
-                null,
-                false,
-            ],
-            'without interaction, listed answers are ignored' => [
-                ['Question?' => ['first', 'second']],
-                2,
-                ['default', 'default'],
-                'default',
-                false,
-            ],
+        yield 'one answer' => [
+            'answers' => ['Question?' => 'yes'],
+            'expectedResult' => 'yes',
+            'default' => null,
+            'interactive' => true,
+        ];
+
+        yield 'no answer' => [
+            'answers' => [],
+            'expectedResult' => $noAnswer,
+            'default' => null,
+            'interactive' => true,
+        ];
+
+        yield 'no answer, a default: still unexpected' => [
+            'answers' => [],
+            'expectedResult' => $noAnswer,
+            'default' => 'default',
+            'interactive' => true,
+        ];
+
+        yield 'an answer over the default' => [
+            'answers' => ['Question?' => 'yes'],
+            'expectedResult' => 'yes',
+            'default' => 'default',
+            'interactive' => true,
+        ];
+
+        yield 'without interaction, no answer: the default' => [
+            'answers' => [],
+            'expectedResult' => 'default',
+            'default' => 'default',
+            'interactive' => false,
+        ];
+
+        yield 'without interaction, no answer and no default' => [
+            'answers' => [],
+            'expectedResult' => $unanswered,
+            'default' => null,
+            'interactive' => false,
+        ];
+
+        yield 'without interaction, an answer is ignored' => [
+            'answers' => ['Question?' => 'yes'],
+            'expectedResult' => 'default',
+            'default' => 'default',
+            'interactive' => false,
+        ];
+
+        yield 'without interaction, an answer cannot replace a missing default' => [
+            'answers' => ['Question?' => 'yes'],
+            'expectedResult' => $unanswered,
+            'default' => null,
+            'interactive' => false,
         ];
     }
 
+    public function testAskReusesAnAnswer(): void
+    {
+        $interaction = new InMemoryInteraction(['Question?' => 'yes']);
+
+        $firstAnswer = $interaction->ask('Question?');
+        $secondAnswer = $interaction->ask('Question?');
+
+        $this->assertSame(['yes', 'yes'], [$firstAnswer, $secondAnswer]);
+    }
+
     /**
-     * @dataProvider confirmationDataProvider
+     * @dataProvider askConfirmationConfirmsAsTheConsoleDoesDataProvider
      *
      * @param array<string, string> $answers
      */
@@ -93,19 +127,56 @@ final class InMemoryInteractionTest extends TestCase
     }
 
     /**
-     * @return array<string, array{0: array<string, string>, 1: bool, 2: bool}>
+     * @return iterable<string, array{answers: array<string, string>, interactive: bool, expected: bool}>
      */
-    public static function confirmationDataProvider(): array
+    public function askConfirmationConfirmsAsTheConsoleDoesDataProvider(): iterable
     {
-        return [
-            'y' => [['Confirm? (y)' => 'y'], true, true],
-            'yes' => [['Confirm? (y)' => 'yes'], true, true],
-            'Y' => [['Confirm? (y)' => 'Y'], true, true],
-            'empty answer: the default' => [['Confirm? (y)' => ''], true, true],
-            'n' => [['Confirm? (y)' => 'n'], true, false],
-            'no' => [['Confirm? (y)' => 'no'], true, false],
-            'without interaction: confirmed' => [[], false, true],
-            'without interaction, an answer of n: still confirmed' => [['Confirm? (y)' => 'n'], false, true],
+        yield 'y' => [
+            'answers' => ['Confirm? (y)' => 'y'],
+            'interactive' => true,
+            'expected' => true,
+        ];
+
+        yield 'yes' => [
+            'answers' => ['Confirm? (y)' => 'yes'],
+            'interactive' => true,
+            'expected' => true,
+        ];
+
+        yield 'Y' => [
+            'answers' => ['Confirm? (y)' => 'Y'],
+            'interactive' => true,
+            'expected' => true,
+        ];
+
+        yield 'empty answer: the default' => [
+            'answers' => ['Confirm? (y)' => ''],
+            'interactive' => true,
+            'expected' => true,
+        ];
+
+        yield 'n' => [
+            'answers' => ['Confirm? (y)' => 'n'],
+            'interactive' => true,
+            'expected' => false,
+        ];
+
+        yield 'no' => [
+            'answers' => ['Confirm? (y)' => 'no'],
+            'interactive' => true,
+            'expected' => false,
+        ];
+
+        yield 'without interaction: confirmed' => [
+            'answers' => [],
+            'interactive' => false,
+            'expected' => true,
+        ];
+
+        yield 'without interaction, an answer of n: still confirmed' => [
+            'answers' => ['Confirm? (y)' => 'n'],
+            'interactive' => false,
+            'expected' => true,
         ];
     }
 }

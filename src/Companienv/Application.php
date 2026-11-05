@@ -33,6 +33,9 @@ class Application extends ConsoleApplication
         $this->setDefaultCommand('companion', true);
     }
 
+    /**
+     * @return Command[]
+     */
     protected function getDefaultCommands(): array
     {
         $companionCommand = new class ([$this, 'companion'], 'companion') extends Command {

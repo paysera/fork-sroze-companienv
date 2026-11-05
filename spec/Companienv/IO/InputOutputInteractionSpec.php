@@ -10,7 +10,9 @@ class InputOutputInteractionSpec extends ObjectBehavior
 {
     public function let(InputInterface $input, OutputInterface $output)
     {
-        $input->isInteractive()->willReturn(false);
+        $input->isInteractive()
+            ->willReturn(false)
+        ;
         $this->beConstructedWith($input, $output);
     }
 
