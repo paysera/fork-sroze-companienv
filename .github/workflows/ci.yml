@@ -13,12 +13,12 @@ jobs:
   tests:
     name: Run tests PHP ${{ matrix.php }} Symfony ${{ matrix.symfony }} ${{ matrix.dependency }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
 
       matrix:
         php:
-          - '7.0'
           - '7.1'
           - '7.2'
           - '7.3'
@@ -33,17 +33,30 @@ jobs:
           - '3.*'
           - '4.*'
           - '5.*'
+          - '6.*'
+          - '7.*'
         dependency:
           - 'lowest'
           - 'highest'
         exclude:
-          - { php: '7.0', symfony: '4.*' }
-          - { php: '7.0', symfony: '5.*' }
           - { php: '7.1', symfony: '5.*' }
+          - { php: '7.1', symfony: '6.*' }
+          - { php: '7.1', symfony: '7.*' }
+          - { php: '7.2', symfony: '6.*' }
+          - { php: '7.2', symfony: '7.*' }
+          - { php: '7.3', symfony: '6.*' }
+          - { php: '7.3', symfony: '7.*' }
+          - { php: '7.4', symfony: '6.*' }
+          - { php: '7.4', symfony: '7.*' }
+          - { php: '8.0', symfony: '6.*' }
+          - { php: '8.0', symfony: '7.*' }
+          - { php: '8.1', symfony: '7.*' }
           - { php: '8.4', symfony: '3.*' }
           - { php: '8.4', symfony: '4.*' }
           - { php: '8.5', symfony: '3.*' }
           - { php: '8.5', symfony: '4.*' }
+        include:
+          - { php: '8.4', symfony: '7.*', dependency: 'highest', php-options: '-d error_reporting=-1', lint: true }
 
     steps:
       - name: Checkout
@@ -55,12 +68,14 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: flex
 
-      - name: Allow packages with security advisories
-        if: matrix.php != '7.0' && matrix.php != '7.1'
-        run: composer config policy.advisories.block false
+      - name: Check for PHP 8.4 deprecations
+        if: matrix.lint
+        shell: bash
+        run: find src tests spec features -name '*.php' -print0 | xargs -0 php -d error_reporting=-1 -d display_errors=1 -l 2>&1 | tee lint.log; ! grep -q Deprecated lint.log
 
-      - name: Disable the Carbon update-helper plugin
-        run: composer config --no-plugins allow-plugins.kylekatarnls/update-helper false
+      - name: Allow packages with security advisories
+        if: matrix.php != '7.1'
+        run: composer config policy.advisories.block false
 
       - name: Install dependencies
         uses: ramsey/composer-install@v2
@@ -74,3 +89,6 @@ jobs:
 
       - name: Run Behat
         run: vendor/bin/behat -fprogress
+
+      - name: Run PHPUnit
+        run: php ${{ matrix.php-options }} vendor/bin/phpunit

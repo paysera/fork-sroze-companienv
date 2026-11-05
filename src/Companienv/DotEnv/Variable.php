@@ -7,7 +7,7 @@ class Variable
     private $name;
     private $value;
 
-    public function __construct(string $name, string $value = null)
+    public function __construct(string $name, ?string $value = null)
     {
         $this->name = $name;
         $this->value = $value;

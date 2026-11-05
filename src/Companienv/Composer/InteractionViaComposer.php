@@ -3,6 +3,7 @@
 namespace Companienv\Composer;
 
 use Companienv\IO\Interaction;
+use Companienv\IO\UnansweredQuestionException;
 use Composer\IO\IOInterface;
 
 class InteractionViaComposer implements Interaction
@@ -25,15 +26,25 @@ class InteractionViaComposer implements Interaction
         return $this->io->askConfirmation($question);
     }
 
-    public function ask(string $question, string $default = null): string
+    public function ask(string $question, ?string $default = null): string
     {
         if (!$this->io->isInteractive()) {
+            if ($default === null) {
+                $this->writeln($question);
+
+                throw new UnansweredQuestionException();
+            }
+
             $this->writeln(sprintf('Automatically returned "%s" in non-interactive mode', $default));
 
             return $default;
         }
 
-        return $this->io->ask($question, $default);
+        do {
+            $answer = $this->io->ask($question, $default);
+        } while ($answer === null);
+
+        return $answer;
     }
 
     public function writeln($messageOrMessages)

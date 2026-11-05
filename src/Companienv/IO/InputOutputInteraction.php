@@ -18,18 +18,26 @@ class InputOutputInteraction implements Interaction
         $this->output = $output;
     }
 
-    public function askConfirmation(string $question) : bool
+    public function askConfirmation(string $question): bool
     {
         return in_array(strtolower($this->ask($question, 'y')), ['y', 'yes']);
     }
 
-    public function ask(string $question, string $default = null) : string
+    public function ask(string $question, ?string $default = null): string
     {
-        $answer = (new QuestionHelper())->ask($this->input, $this->output, new Question($question, $default));
+        if (!$this->input->isInteractive()) {
+            if ($default === null) {
+                $this->writeln($question);
 
-        if (null === $answer || ('' === $answer && $default !== null)) {
-            return $this->ask($question, $default);
+                throw new UnansweredQuestionException();
+            }
+
+            return $default;
         }
+
+        do {
+            $answer = (new QuestionHelper())->ask($this->input, $this->output, new Question($question, $default));
+        } while ($answer === null);
 
         return $answer;
     }

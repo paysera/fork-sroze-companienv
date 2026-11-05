@@ -61,8 +61,12 @@ class RsaKeys implements Extension
     /**
      * {@inheritdoc}
      */
-    public function isVariableRequiringValue(Companion $companion, Block $block, Variable $variable, string $currentValue = null) : int
-    {
+    public function isVariableRequiringValue(
+        Companion $companion,
+        Block $block,
+        Variable $variable,
+        ?string $currentValue = null
+    ): int {
         if (null === ($attribute = $block->getAttribute('rsa-pair', $variable))) {
             return Extension::ABSTAIN;
         }

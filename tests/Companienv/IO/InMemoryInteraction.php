@@ -2,37 +2,59 @@
 
 namespace Companienv\IO;
 
+use RuntimeException;
+
 class InMemoryInteraction implements Interaction
 {
     /**
-     * A question-answer mapping.
-     *
-     * @var array
+     * @var array<string, string>
      */
     private $answers;
 
+    private $interactive;
+
     private $buffer = '';
 
-    public function __construct(array $answers = [])
+    /**
+     * @param array<string, string> $answers
+     */
+    public function __construct(array $answers = [], bool $interactive = true)
     {
         $this->answers = $answers;
+        $this->interactive = $interactive;
     }
 
     public function askConfirmation(string $question): bool
     {
-        return (bool) $this->ask($question);
-    }
-
-    public function ask(string $question, string $default = null): string
-    {
-        $normalizedKey = trim(strip_tags($question));
-        $this->buffer .= trim(strip_tags($question))."\n";
-
-        if (isset($this->answers[$normalizedKey])) {
-            return $this->answers[$normalizedKey];
+        if (!$this->interactive) {
+            return true;
         }
 
-        throw new \RuntimeException(sprintf(
+        $answer = $this->ask($question, 'y');
+
+        return in_array(strtolower($answer !== '' ? $answer : 'y'), ['y', 'yes'], true);
+    }
+
+    public function ask(string $question, ?string $default = null): string
+    {
+        $normalizedKey = trim(strip_tags($question));
+        $this->buffer .= trim(strip_tags($question)) . "\n";
+
+        if (!$this->interactive) {
+            if ($default === null) {
+                throw new UnansweredQuestionException();
+            }
+
+            return $default;
+        }
+
+        $answer = $this->answers[$normalizedKey] ?? null;
+
+        if ($answer !== null) {
+            return $answer;
+        }
+
+        throw new RuntimeException(sprintf(
             'No answer for question "%s"',
             $normalizedKey
         ));
@@ -44,7 +66,7 @@ class InMemoryInteraction implements Interaction
             $messageOrMessages = [$messageOrMessages];
         }
 
-        $this->buffer .= implode("\n", $messageOrMessages)."\n";
+        $this->buffer .= implode("\n", $messageOrMessages) . "\n";
     }
 
     public function getBuffer(): string
