@@ -1,58 +1,27 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 
 ### Added
-- Support for Symfony 6 and 7.4.
-- A PHPUnit test suite.
-- A GitHub Actions workflow that runs the tests on every PHP and Symfony combination it lists, with the lowest and the highest dependencies.
-- `Companion::getVariablePath()`, `getVariablePaths()`, `filesExistAtVariablePaths()`, `getVariablePathForEnvFile()` and `resolveDistValue()`, for an extension that reads paths from `.env` as `#+rsa-pair`, `#+ssl-certificate` and `#+file-to-propagate` do, and `Companion::markValueAsLiteral()`, for one whose value must read back from `.env` as given even when it equals its `.env.dist` default.
-- `Companion::recordGeneratedValues()`, for an extension whose generated files require a group of values to be saved together, including values that were already present before generation.
+- Symfony 6 and 7.4 support for the Composer configuration script and the console command's plain-variable flow.
+- PHPUnit coverage for the application, Composer script, interaction handling and configuration writing.
+- Symfony 6 and 7.4 jobs in the existing GitHub Actions test matrix.
 
 ### Changed
-- PHP 7.1 or later is required. `symfony/process` 6 is required at 6.4.33 or later, which needs PHP 8.1.
-- `symfony/console`, `symfony/dotenv` and `symfony/process` 4.4 or later are required on the 4.x line.
-- `jackiedo/dotenv-editor` 1.1.1 or later is required.
-- The development dependencies install on every PHP and Symfony combination the workflow runs.
-- The console command accepts an empty answer to a question whose default is empty, as the Composer script does, instead of asking again.
-- `#+file-to-propagate` looks for the file at the path set in `.env`, or at the `.env.dist` path, as Dotenv reads it, when `.env` sets none. A file that is there is kept, also when `.env` does not set the variable. A missing one is asked for, also when the variable is set, and copied to that path. An empty answer, like a run without interaction, leaves it missing: a path set in `.env` is left as it is and an empty one gets the `.env.dist` path. A variable with no path in either file is asked like any other variable.
-- A typed value that starts and ends with a quote keeps its quotes: `'abc'` now reads back as `'abc'`, where it read back as `abc`. A quoted `.env.dist` default, kept with Enter or typed again exactly, is still written as the file has it when Dotenv can read it, and so reads back without its quotes.
-- The RSA pass phrase is asked again, with the reason, unless it is 4 to 1,023 bytes long. openssl 1.1.1d refuses a shorter one, which made key generation fail, and openssl reads at most 1,023 bytes of a pass phrase on standard input, where it now goes; on OpenSSL 3, 0.0.12 took a longer one on the command line.
-- In a run where `#+only-if` leaves a variable out, the variables are checked twice, so that a `${VAR}` in a path never takes that variable's default: each extension's `isVariableRequiringValue()`, and a `$(…)` in a `.env.dist` path or a default it uses, run twice in such a run.
-- The `companion` command is registered by `Application::getDefaultCommands(): array` instead of the constructor. A subclass that overrides `getDefaultCommands()` must declare its `array` return type and include the parent's commands to keep `companion`.
+- PHP 7.1 or later is required; the Symfony 4 components require 4.4 or later.
+- Compatible Composer, PHPUnit and Symfony development dependency ranges.
+- The console command accepts an empty answer when its default is empty, matching the Composer script.
+- The `companion` command is registered through `Application::getDefaultCommands(): array`. Subclass overrides must declare the return type and include the parent's commands to retain it.
 
 ### Fixed
-- Generating an RSA key pair or SSL certificate after an earlier answer changes its paths now saves every generated value, including an existing pass phrase or domain name. The saved credentials match the generated files even when their variable precedes the path that triggers generation.
-- A public-key or certificate path that refers to an empty sibling path now uses the sibling's replacement default when that definition precedes it. Paths also use a newly generated pass phrase or domain name, including through an existing prefix variable, so generated paths remain consistent with the values saved in `.env`.
-- Separate key groups reuse a command-derived default when its resolved inputs are unchanged.
-- The `companienv` console command failed on Symfony 5 and later.
-- RSA key and SSL certificate generation failed with `symfony/process` 5 and later.
-- Declining RSA key or SSL certificate generation asked the same question again for the other variables of the pair.
-- An RSA key pair or SSL certificate whose files exist was offered for generation again when one of its variables was missing from `.env`; accepting replaced the files, and `.env` could keep a pass phrase that no longer opened the key. Such a variable, the pass phrase included, is now asked like any other, with its `.env.dist` default, and the files are kept for the rest of the run, also when another path is typed for one of them.
-- `#+rsa-pair` and `#+ssl-certificate` looked for their files at the `.env.dist` paths only: a key pair or certificate at the paths set in `.env` was reported as missing configuration on every run, and accepting generated new files at the `.env.dist` paths and wrote those paths to `.env`. The files are now looked for and generated at the paths set in `.env`, or at the `.env.dist` paths when `.env` sets none, and a path set in `.env` is kept.
-- `#+rsa-pair`, `#+ssl-certificate` and `#+file-to-propagate` read a `.env.dist` path as Dotenv reads it: quotes and an inline comment are not part of it, and a `${VAR}` in it takes its value from `.env` or from the `.env.dist` default of an earlier variable that `.env` does not set and that `#+only-if` does not leave out. When `.env` already has the variable, whose line the path is written over, only the `.env` lines above it count.
-- A `#+file-to-propagate` file that existed was reported as missing configuration on every run.
-- Without interaction, a question with no default (the RSA pass phrase, the SSL domain name) failed with a `TypeError` in the Composer script and was asked again without end in the console command. It now fails with a `Companienv\IO\UnansweredQuestionException`, a `RuntimeException` that names the question.
-- Without interaction, a missing `#+file-to-propagate` file whose variable was not set failed with a `TypeError` in the Composer script and was asked for without end in the console command. Its path is now written and the file stays missing.
-- Without interaction, the console command asked again without end for a variable whose default is empty. It now writes the empty value, as the Composer script does.
-- In the Composer script, an empty answer to a question with no default failed with a `TypeError`. The question is now asked again, as the console command does.
-- A value containing whitespace, `#`, a quote, a backslash or `$` was written without quotes, so Dotenv could not read the `.env` file or read a different value. Such a value is now written in single quotes, or in double quotes when its only quote is a `'` and it has no `\`, `"` or `$`, so Dotenv reads back the value as it was given. A value equal to its `.env.dist` default is written as the file has it when Dotenv can read that default, or when it holds a `$(…)`, which is not run to find out. The RSA pass phrase and the SSL domain name of a generated key pair or certificate, which openssl gets as typed, are written so that Dotenv reads them back as typed.
-- A `$(…)` in `.env` ran again each time the file was read, several times for each variable. Normal reads now run it once each time the file changes. Resolving replacement key paths also parses a projected `.env` buffer once per distinct replacement context, which can run its commands before the file is written.
-- PHP 8.1+ deprecation notices from `jackiedo/dotenv-editor` 1.2.0 and earlier when writing a variable.
-- PHP 8.4 deprecations for implicitly nullable parameters.
-- A variable set to `0` in `.env` that was asked again, as in a declined `#+rsa-pair`, offered its `.env.dist` default instead of `0`, so Enter replaced the `0`.
-- On `symfony/dotenv` 4.4.0 and 5.0.0, a `${VAR}` in `.env` that nothing defines made the Composer script fail with an `ErrorException` the next time it read the file, such as a path written from a `.env.dist` default that `#+only-if` leaves out.
+- The console command declares an integer exit status for Symfony 7 and returns a successful status after writing configuration on Symfony 5 and later.
+- Non-interactive console runs accept empty defaults instead of repeatedly asking the question.
+- Both interactions throw `Companienv\IO\UnansweredQuestionException` for a non-interactive question without a default. Interactive questions with no answer are asked again.
+- Writing configuration passes an empty comment to dotenv-editor, avoiding PHP 8.1+ null-argument deprecations.
+- Explicit nullable parameters avoid PHP 8.4 deprecations, including in the default extension classes loaded by the Composer script.
 
-### Security
-- Key paths, the pass phrase and the domain name are passed to openssl as arguments instead of a shell command line. An active `$(…)` in a `.env.dist` path that `.env` does not set is still run by Dotenv, as in any `.env.dist` default. A path with an active command resolves defaults named in its expandable text or command body. Single-quoted literals, escaped references and trailing comments outside the command do not cause unrelated defaults to run. Other paths use only the variables Dotenv reads in them. A default that `#+only-if` leaves out can still run once while variables are checked if it is listed below the first variable of the key pair or certificate whose path uses it.
-- The domain name is escaped for openssl's subject syntax, so `/`, `+` and `\` in it no longer add subject fields or make openssl fail.
-- The RSA pass phrase is passed to openssl on standard input instead of the command line. When key generation fails, the exception no longer wraps Symfony's process exception, whose message named the pass phrase; it carries openssl's error itself.
-- A value written to `.env` that contains `$(…)` is no longer run as a shell command when Dotenv reads the file, unless it is the variable's `.env.dist` default, other than the pass phrase or domain name of a generated key pair or certificate. `symfony/dotenv` 3.4, 4.4, 5.0 to 5.4.33, 6.0 to 6.3.10, 6.4.0 and 6.4.1 replace variables before they run commands, so there it still runs when another value refers to it, such as a `.env.dist` default `B=${A}`.
-- `symfony/process` releases with the argument escaping of CVE-2026-24739 (MSYS2 or Git Bash on Windows) are refused, also when `symfony/symfony` provides the package: 5.x before 5.4.51, 6.x before 6.4.33 and 7.4 before 7.4.5. The advisory lists 6.4 only, but 6.0 to 6.3 escape the same way and have no fix. Symfony 3.4 and 4.4 have no fixed release, and their affected releases are still allowed.
+### Scope
+- RSA generation, SSL certificate generation, file propagation, path resolution and value-formatting enhancements are deferred. Their existing behavior is retained; RSA and SSL generation still use the legacy Process API and are not covered by the Symfony 6/7 support claim above.
+- Dependency conflict constraints exclude affected Symfony Process 5, 6 and 7.4 releases. They do not adapt the optional generation extensions to the newer Process API.
 
 [Unreleased]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...HEAD

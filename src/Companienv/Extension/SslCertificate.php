@@ -6,8 +6,6 @@ use Companienv\Companion;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
-use RuntimeException;
-use Symfony\Component\Process\Exception\RuntimeException as ProcessRuntimeException;
 use Symfony\Component\Process\Process;
 
 class SslCertificate implements Extension
@@ -23,62 +21,42 @@ class SslCertificate implements Extension
             return null;
         }
 
-        if (array_key_exists($variable->getName(), $this->populatedVariables)) {
+        if (isset($this->populatedVariables[$variable->getName()])) {
             return $this->populatedVariables[$variable->getName()];
         }
 
-        $pathNames = array_slice($attribute->getVariableNames(), 0, 2);
-
-        if (
-            $companion->filesExistAtVariablePaths($block, $pathNames)
-            || !$companion->askConfirmation(sprintf(
-                'Variables %s represents an SSL certificate. Do you want to automatically generate them? (y) ',
-                implode(' and ', array_map(function (string $variable): string {
-                    return '<comment>' . $variable . '</comment>';
-                }, $attribute->getVariableNames()))
-            ))
-        ) {
-            foreach ($attribute->getVariableNames() as $variableName) {
-                $this->populatedVariables[$variableName] = null;
+        if (!$companion->askConfirmation(sprintf(
+            'Variables %s represents an SSL certificate. Do you want to automatically generate them? (y) ',
+            implode(' and ', array_map(function ($variable) {
+                return '<comment>'.$variable.'</comment>';
+            }, $attribute->getVariableNames()))
+        ))) {
+            // Ensure we don't ask anymore for this variable pair
+            foreach ($attribute->getVariableNames() as $variable) {
+                $this->populatedVariables[$variable] = null;
             }
 
             return null;
         }
 
         $domainName = $companion->ask('Enter the domain name for which to generate the self-signed SSL certificate: ');
-        $domainVariableName = $attribute->getVariableNames()[2];
-        [$privateKeyPath, $certificatePath] = $companion->getVariablePaths(
-            $block,
-            $pathNames,
-            [$domainVariableName => $domainName]
-        );
+        $privateKeyPath = $block->getVariable($privateKeyVariableName = $attribute->getVariableNames()[0])->getValue();
+        $certificateKeyPath = $block->getVariable($certificateVariableName = $attribute->getVariableNames()[1])->getValue();
 
         try {
-            (new Process([
-                'openssl', 'req', '-x509', '-nodes', '-days', '3650', '-newkey', 'rsa:2048',
-                '-keyout', $companion->getFileSystem()->realpath($privateKeyPath),
-                '-out', $companion->getFileSystem()->realpath($certificatePath),
-                '-subj', '/C=SS/ST=SS/L=SelfSignedCity/O=SelfSignedOrg/CN=' . addcslashes($domainName, '\\/+'),
-            ]))->mustRun();
-        } catch (ProcessRuntimeException $exception) {
-            throw new RuntimeException(
-                'Could not have generated the SSL certificate: ' . $exception->getMessage(),
-                $exception->getCode(),
-                $exception
-            );
+            (new Process(sprintf(
+                'openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout %s -out %s -subj "/C=SS/ST=SS/L=SelfSignedCity/O=SelfSignedOrg/CN=%s"',
+                $companion->getFileSystem()->realpath($privateKeyPath),
+                $companion->getFileSystem()->realpath($certificateKeyPath),
+                $domainName
+            )))->mustRun();
+        } catch (\Symfony\Component\Process\Exception\RuntimeException $e) {
+            throw new \RuntimeException('Could not have generated the SSL certificate: '.$e->getMessage(), $e->getCode(), $e);
         }
 
-        foreach ($pathNames as $pathName) {
-            $this->populatedVariables[$pathName] = $companion->getVariablePathForEnvFile(
-                $block->getVariable($pathName)
-            );
-        }
-        $this->populatedVariables[$domainVariableName] = $domainName;
-        $companion->markValueAsLiteral($domainVariableName);
-        $companion->recordGeneratedValues(array_intersect_key(
-            $this->populatedVariables,
-            array_flip($attribute->getVariableNames())
-        ));
+        $this->populatedVariables[$privateKeyVariableName] = $privateKeyPath;
+        $this->populatedVariables[$certificateVariableName] = $certificateKeyPath;
+        $this->populatedVariables[$attribute->getVariableNames()[2]] = $domainName;
 
         return $this->populatedVariables[$variable->getName()];
     }
@@ -93,12 +71,15 @@ class SslCertificate implements Extension
         ?string $currentValue = null
     ): int {
         if (null === ($attribute = $block->getAttribute('ssl-certificate', $variable))) {
-            return Extension::ABSTAIN;
+            return false;
         }
 
-        return $companion->filesExistAtVariablePaths($block, array_slice($attribute->getVariableNames(), 0, 2))
-            ? Extension::ABSTAIN
-            : Extension::VARIABLE_REQUIRED
-        ;
+        $fileSystem = $companion->getFileSystem();
+
+        return (
+            !$fileSystem->exists($block->getVariable($privateKeyVariableName = $attribute->getVariableNames()[0])->getValue())
+            || !$fileSystem->exists($block->getVariable($attribute->getVariableNames()[1])->getValue())
+        ) ? Extension::VARIABLE_REQUIRED
+            : Extension::ABSTAIN;
     }
 }

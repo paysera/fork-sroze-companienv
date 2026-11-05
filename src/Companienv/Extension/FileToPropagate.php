@@ -6,8 +6,6 @@ use Companienv\Companion;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
-use InvalidArgumentException;
-use RuntimeException;
 
 class FileToPropagate implements Extension
 {
@@ -20,38 +18,27 @@ class FileToPropagate implements Extension
             return null;
         }
 
+        $definedVariablesHash = $companion->getDefinedVariablesHash();
         $fileSystem = $companion->getFileSystem();
-        $filename = $companion->getVariablePath($variable);
-        if ($filename === '') {
-            return null;
+
+        // If the file exists and seems legit, keep the file.
+        if ($fileSystem->exists($filename = $variable->getValue()) && isset($definedVariablesHash[$variable->getName()])) {
+            return $definedVariablesHash[$variable->getName()];
         }
 
-        $value = $companion->getVariablePathForEnvFile($variable);
-        if ($fileSystem->exists($filename)) {
-            return $value;
-        }
-
-        $downloadedFilePath = $companion->ask(
-            '<comment>' . $variable->getName() . '</comment>: '
-                . 'What is the path of your downloaded file? (leave empty to skip) ',
-            ''
-        );
-        if ($downloadedFilePath === '') {
-            return $value;
-        }
-
+        $downloadedFilePath = $companion->ask('<comment>'.$variable->getName().'</comment>: What is the path of your downloaded file? ');
         if (!$fileSystem->exists($downloadedFilePath, false)) {
-            throw new InvalidArgumentException(sprintf('The file "%s" does not exist', $downloadedFilePath));
+            throw new \InvalidArgumentException(sprintf('The file "%s" does not exist', $downloadedFilePath));
         }
 
-        if ($fileSystem->write($filename, $fileSystem->getContents($downloadedFilePath, false)) === false) {
-            throw new RuntimeException(sprintf(
+        if (false === $fileSystem->write($filename, $fileSystem->getContents($downloadedFilePath, false))) {
+            throw new \RuntimeException(sprintf(
                 'Unable to write into "%s"',
                 $filename
             ));
         }
 
-        return $value;
+        return $variable->getValue();
     }
 
     /**
@@ -67,11 +54,8 @@ class FileToPropagate implements Extension
             return Extension::ABSTAIN;
         }
 
-        $filename = $companion->getVariablePath($variable);
-
-        return $filename === '' || $companion->getFileSystem()->exists($filename)
-            ? Extension::ABSTAIN
-            : Extension::VARIABLE_REQUIRED
-        ;
+        return $companion->getFileSystem()->exists($variable->getValue())
+             ? Extension::VARIABLE_REQUIRED
+             : Extension::ABSTAIN;
     }
 }

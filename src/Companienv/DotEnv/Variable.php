@@ -2,9 +2,6 @@
 
 namespace Companienv\DotEnv;
 
-use LogicException;
-use Symfony\Component\Dotenv\Dotenv;
-
 class Variable
 {
     private $name;
@@ -29,14 +26,5 @@ class Variable
     public function getValue()
     {
         return $this->value;
-    }
-
-    public function getDotenvValue(string $precedingLines = ''): ?string
-    {
-        try {
-            return @(new Dotenv())->parse($precedingLines . 'VALUE=' . $this->value . "\n")['VALUE'];
-        } catch (LogicException $exception) {
-            return null;
-        }
     }
 }

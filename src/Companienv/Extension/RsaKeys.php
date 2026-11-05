@@ -6,15 +6,10 @@ use Companienv\Companion;
 use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension;
-use RuntimeException;
-use Symfony\Component\Process\Exception\RuntimeException as ProcessRuntimeException;
 use Symfony\Component\Process\Process;
 
 class RsaKeys implements Extension
 {
-    private const MINIMUM_PASS_PHRASE_LENGTH = 4;
-    private const MAXIMUM_PASS_PHRASE_LENGTH = 1023;
-
     private $populatedVariables = [];
 
     /**
@@ -26,98 +21,41 @@ class RsaKeys implements Extension
             return null;
         }
 
-        if (array_key_exists($variable->getName(), $this->populatedVariables)) {
+        if (isset($this->populatedVariables[$variable->getName()])) {
             return $this->populatedVariables[$variable->getName()];
         }
 
-        $pathNames = array_slice($attribute->getVariableNames(), 0, 2);
-
-        if (
-            $companion->filesExistAtVariablePaths($block, $pathNames)
-            || !$companion->askConfirmation(sprintf(
-                'Variables %s represents an RSA public/private key. Do you want to automatically generate them? (y) ',
-                implode(' and ', array_map(function (string $variable): string {
-                    return '<comment>' . $variable . '</comment>';
-                }, $attribute->getVariableNames()))
-            ))
-        ) {
-            foreach ($attribute->getVariableNames() as $variableName) {
-                $this->populatedVariables[$variableName] = null;
+        if (!$companion->askConfirmation(sprintf(
+            'Variables %s represents an RSA public/private key. Do you want to automatically generate them? (y) ',
+            implode(' and ', array_map(function ($variable) {
+                return '<comment>'.$variable.'</comment>';
+            }, $attribute->getVariableNames()))
+        ))) {
+            // Ensure we don't ask anymore for this variable pair
+            foreach ($attribute->getVariableNames() as $variable) {
+                $this->populatedVariables[$variable] = null;
             }
 
             return null;
         }
 
         $fileSystem = $companion->getFileSystem();
-        $passPhrase = $this->askPassPhrase($companion);
-        $passPhraseVariableName = $attribute->getVariableNames()[2];
-        [$privateKeyPath, $publicKeyPath] = $companion->getVariablePaths(
-            $block,
-            $pathNames,
-            [$passPhraseVariableName => $passPhrase]
-        );
+        $passPhrase = $companion->ask('Enter pass phrase to protect the keys: ');
+        $privateKeyPath = $block->getVariable($privateKeyVariableName = $attribute->getVariableNames()[0])->getValue();
+        $publicKeyPath = $block->getVariable($publicKeyVariableName = $attribute->getVariableNames()[1])->getValue();
 
         try {
-            (new Process(
-                [
-                    'openssl', 'genrsa',
-                    '-out', $fileSystem->realpath($privateKeyPath),
-                    '-aes256',
-                    '-passout', 'stdin',
-                    '4096',
-                ],
-                null,
-                null,
-                $passPhrase
-            ))->mustRun();
-            (new Process(
-                [
-                    'openssl', 'rsa', '-pubout',
-                    '-in', $fileSystem->realpath($privateKeyPath),
-                    '-out', $fileSystem->realpath($publicKeyPath),
-                    '-passin', 'stdin',
-                ],
-                null,
-                null,
-                $passPhrase
-            ))->mustRun();
-        } catch (ProcessRuntimeException $exception) {
-            throw new RuntimeException(
-                'Could not have generated the RSA public/private key: ' . $exception->getMessage(),
-                $exception->getCode()
-            );
+            (new Process(sprintf('openssl genrsa -out %s -aes256 -passout pass:%s 4096', $fileSystem->realpath($privateKeyPath), $passPhrase)))->mustRun();
+            (new Process(sprintf('openssl rsa -pubout -in %s -out %s -passin pass:%s', $fileSystem->realpath($privateKeyPath), $fileSystem->realpath($publicKeyPath), $passPhrase)))->mustRun();
+        } catch (\Symfony\Component\Process\Exception\RuntimeException $e) {
+            throw new \RuntimeException('Could not have generated the RSA public/private key', $e->getCode(), $e);
         }
 
-        foreach ($pathNames as $pathName) {
-            $this->populatedVariables[$pathName] = $companion->getVariablePathForEnvFile(
-                $block->getVariable($pathName)
-            );
-        }
-        $this->populatedVariables[$passPhraseVariableName] = $passPhrase;
-        $companion->markValueAsLiteral($passPhraseVariableName);
-        $companion->recordGeneratedValues(array_intersect_key(
-            $this->populatedVariables,
-            array_flip($attribute->getVariableNames())
-        ));
+        $this->populatedVariables[$privateKeyVariableName] = $privateKeyPath;
+        $this->populatedVariables[$publicKeyVariableName] = $publicKeyPath;
+        $this->populatedVariables[$attribute->getVariableNames()[2]] = $passPhrase;
 
         return $this->populatedVariables[$variable->getName()];
-    }
-
-    private function askPassPhrase(Companion $companion): string
-    {
-        $passPhrase = $companion->ask('Enter pass phrase to protect the keys: ');
-        while (
-            strlen($passPhrase) < self::MINIMUM_PASS_PHRASE_LENGTH
-            || strlen($passPhrase) > self::MAXIMUM_PASS_PHRASE_LENGTH
-        ) {
-            $passPhrase = $companion->ask(sprintf(
-                'The pass phrase must be %d to %d bytes long. Enter pass phrase to protect the keys: ',
-                self::MINIMUM_PASS_PHRASE_LENGTH,
-                self::MAXIMUM_PASS_PHRASE_LENGTH
-            ));
-        }
-
-        return $passPhrase;
     }
 
     /**
@@ -133,9 +71,12 @@ class RsaKeys implements Extension
             return Extension::ABSTAIN;
         }
 
-        return $companion->filesExistAtVariablePaths($block, array_slice($attribute->getVariableNames(), 0, 2))
-            ? Extension::ABSTAIN
-            : Extension::VARIABLE_REQUIRED
-        ;
+        $fileSystem = $companion->getFileSystem();
+
+        return (
+            !$fileSystem->exists($block->getVariable($attribute->getVariableNames()[0])->getValue())
+            || !$fileSystem->exists($block->getVariable($attribute->getVariableNames()[1])->getValue())
+        ) ? Extension::VARIABLE_REQUIRED
+          : Extension::ABSTAIN;
     }
 }

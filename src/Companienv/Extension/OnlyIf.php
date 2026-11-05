@@ -22,8 +22,6 @@ class OnlyIf implements Extension
         if (!$this->matchesCondition($companion, $attribute)) {
             return $variable->getValue();
         }
-
-        return null;
     }
 
     /**
@@ -44,7 +42,7 @@ class OnlyIf implements Extension
              : Extension::VARIABLE_SKIP;
     }
 
-    private function matchesCondition(Companion $companion, Attribute $attribute): bool
+    private function matchesCondition(Companion $companion, Attribute $attribute) : bool
     {
         $definedVariablesHash = $companion->getDefinedVariablesHash();
         foreach ($attribute->getLabels() as $otherVariableName => $expectedValue) {

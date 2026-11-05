@@ -3,12 +3,10 @@
 namespace Companienv\DotEnv;
 
 use Companienv\IO\FileSystem\FileSystem;
-use InvalidArgumentException;
-use RuntimeException;
 
 class Parser
 {
-    public function parse(FileSystem $fileSystem, string $path): File
+    public function parse(FileSystem $fileSystem, string $path) : File
     {
         $blocks = [];
 
@@ -30,12 +28,12 @@ class Parser
                 } elseif ($block !== null) {
                     if (substr($line, 0, 2) == '#+') {
                         $block->addAttribute($this->parseAttribute(substr($line, 2)));
-                    } elseif (substr($line, 1, 1) == ' ') {
+                    } else if (substr($line, 1, 1) == ' ') {
                         $block->appendToDescription(trim($line, '# '));
                     }
                 }
             } elseif (false !== ($firstEquals = strpos($line, '='))) {
-                if ($block === null) {
+                if (null === $block) {
                     $blocks[] = $block = new Block();
                 }
 
@@ -44,7 +42,7 @@ class Parser
                     substr($line, $firstEquals + 1)
                 ));
             } else {
-                throw new InvalidArgumentException(sprintf(
+                throw new \InvalidArgumentException(sprintf(
                     'The line %d of the file %s is invalid: %s',
                     $number,
                     $path,
@@ -61,11 +59,8 @@ class Parser
         $variableNameRegex = '[A-Z0-9_]+';
         $valueRegex = '[^\) ]+';
 
-        $attributeRegex = '/^([a-z0-9-]+)\(((' . $variableNameRegex . ' ?)*)\)(:\((('
-            . $variableNameRegex . '=' . $valueRegex . ' ?)*)\))?$/'
-        ;
-        if (preg_match($attributeRegex, $string, $matches) !== 1) {
-            throw new RuntimeException(sprintf(
+        if (!preg_match('/^([a-z0-9-]+)\((('.$variableNameRegex.' ?)*)\)(:\((('.$variableNameRegex.'='.$valueRegex.' ?)*)\))?$/', $string, $matches)) {
+            throw new \RuntimeException(sprintf(
                 'Unable to parse the given attribute: %s',
                 $string
             ));
@@ -80,8 +75,8 @@ class Parser
         $envMappings = explode(' ', $dotEnvMapping);
 
         foreach ($envMappings as $envMapping) {
-            if (strpos($envMapping, '=') === false) {
-                throw new RuntimeException(sprintf(
+            if (false === strpos($envMapping, '=')) {
+                throw new \RuntimeException(sprintf(
                     'Could not parse attribute mapping "%s"',
                     $dotEnvMapping
                 ));

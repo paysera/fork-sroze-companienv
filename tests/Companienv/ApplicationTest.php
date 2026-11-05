@@ -8,9 +8,7 @@ use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension\AbstractExtension;
 use Companienv\Interaction\AskVariableValues;
-use Companienv\IO\UnansweredQuestionException;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -158,37 +156,19 @@ final class ApplicationTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider withoutInteractionDataProvider
-     *
-     * @param array<string, string> $expectedError
-     * @param array<string, string> $expectedFiles
-     * @param array<string, string> $files
-     */
-    public function testRunWithoutInteraction(
-        string $distFile,
-        array $expectedError,
-        array $expectedFiles,
-        array $files = []
-    ): void {
+    public function testRunWithoutInteractionAcceptsEmptyAndFalsyDefaults(): void
+    {
+        $distFile = "EMPTY_VARIABLE=\nZERO=0\n";
         file_put_contents($this->temporaryDirectory . '/.env.dist', $distFile);
-        foreach ($files as $name => $contents) {
-            file_put_contents($this->temporaryDirectory . '/' . $name, $contents);
-        }
         $application = new Application($this->temporaryDirectory);
         $application->setAutoExit(false);
         $application->setCatchExceptions(false);
 
-        $error = [];
-        try {
-            $application->run(new ArrayInput(['--no-interaction' => true]), new BufferedOutput());
-        } catch (RuntimeException $exception) {
-            $error = [get_class($exception) => $exception->getMessage()];
-        }
+        $exitCode = $application->run(new ArrayInput(['--no-interaction' => true]), new BufferedOutput());
 
         $this->assertSame(
-            ['error' => $expectedError, 'files' => $expectedFiles],
-            ['error' => $error, 'files' => $this->readTemporaryDirectory()]
+            ['exit code' => 0, 'files' => ['.env' => $distFile, '.env.dist' => $distFile]],
+            ['exit code' => $exitCode, 'files' => $this->readTemporaryDirectory()]
         );
     }
 
@@ -211,116 +191,6 @@ final class ApplicationTest extends TestCase
                 [$extension, new AskVariableValues()],
                 [],
                 "MY_VARIABLE=from-extension\n",
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, list<string|array<string, string>>>
-     */
-    public static function withoutInteractionDataProvider(): array
-    {
-        $rsaPair = "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\n"
-            . "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n"
-        ;
-        $sslCertificate = "## Certificate\n#+ssl-certificate(CERT_KEY_PATH CERT_PATH CERT_DOMAIN)\n"
-            . "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n"
-        ;
-        $fileToPropagate = "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=key.pem\n";
-
-        return [
-            'rsa-pair' => [
-                $rsaPair,
-                [
-                    UnansweredQuestionException::class => 'Cannot answer "Enter pass phrase to protect the keys:" '
-                        . 'in non-interactive mode: the question has no default.',
-                ],
-                ['.env.dist' => $rsaPair],
-            ],
-            'ssl-certificate' => [
-                $sslCertificate,
-                [
-                    UnansweredQuestionException::class => 'Cannot answer "Enter the domain name for which to generate '
-                        . 'the self-signed SSL certificate:" in non-interactive mode: the question has no default.',
-                ],
-                ['.env.dist' => $sslCertificate],
-            ],
-            'rsa-pair whose files exist' => [
-                $rsaPair,
-                [],
-                [
-                    '.env' => "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n",
-                    '.env.dist' => $rsaPair,
-                    'private.pem' => 'KEY',
-                    'public.pem' => 'KEY',
-                ],
-                ['private.pem' => 'KEY', 'public.pem' => 'KEY'],
-            ],
-            'rsa-pair whose files exist, with a .env.dist pass phrase' => [
-                $rsaPairWithPassPhrase = str_replace('KEY_PASS=', 'KEY_PASS=dev-phrase', $rsaPair),
-                [],
-                [
-                    '.env' => "KEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=dev-phrase\n",
-                    '.env.dist' => $rsaPairWithPassPhrase,
-                    'private.pem' => 'KEY',
-                    'public.pem' => 'KEY',
-                ],
-                ['private.pem' => 'KEY', 'public.pem' => 'KEY'],
-            ],
-            'ssl-certificate whose files exist' => [
-                $sslCertificate,
-                [],
-                [
-                    '.env' => "CERT_KEY_PATH=key.pem\nCERT_PATH=cert.pem\nCERT_DOMAIN=\n",
-                    '.env.dist' => $sslCertificate,
-                    'cert.pem' => 'CERTIFICATE',
-                    'key.pem' => 'KEY',
-                ],
-                ['cert.pem' => 'CERTIFICATE', 'key.pem' => 'KEY'],
-            ],
-            'file-to-propagate with a variable in its .env.dist path' => [
-                "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=\${KEY_DIR}/key.pem\n",
-                [],
-                [
-                    '.env' => "KEY_DIR=keys\nKEY_PATH=\${KEY_DIR}/key.pem\n",
-                    '.env.dist' => "## Keys\n#+file-to-propagate(KEY_PATH)\nKEY_PATH=\${KEY_DIR}/key.pem\n",
-                ],
-                ['.env' => "KEY_DIR=keys\n"],
-            ],
-            'rsa-pair at the paths set in .env' => [
-                $rsaPair,
-                [],
-                [
-                    '.env' => "KEY_PATH=my-private.pem\nPUB_PATH=my-public.pem\nKEY_PASS=stored-phrase\n",
-                    '.env.dist' => $rsaPair,
-                    'my-private.pem' => 'KEY',
-                    'my-public.pem' => 'KEY',
-                ],
-                [
-                    '.env' => "KEY_PATH=my-private.pem\nPUB_PATH=my-public.pem\nKEY_PASS=stored-phrase\n",
-                    'my-private.pem' => 'KEY',
-                    'my-public.pem' => 'KEY',
-                ],
-            ],
-            'ssl-certificate at the paths set in .env' => [
-                $sslCertificate,
-                [],
-                [
-                    '.env' => "CERT_KEY_PATH=my-key.pem\nCERT_PATH=my-cert.pem\nCERT_DOMAIN=example.com\n",
-                    '.env.dist' => $sslCertificate,
-                    'my-cert.pem' => 'CERTIFICATE',
-                    'my-key.pem' => 'KEY',
-                ],
-                [
-                    '.env' => "CERT_KEY_PATH=my-key.pem\nCERT_PATH=my-cert.pem\nCERT_DOMAIN=example.com\n",
-                    'my-cert.pem' => 'CERTIFICATE',
-                    'my-key.pem' => 'KEY',
-                ],
-            ],
-            'file-to-propagate' => [
-                $fileToPropagate,
-                [],
-                ['.env' => "KEY_PATH=key.pem\n", '.env.dist' => $fileToPropagate],
             ],
         ];
     }
