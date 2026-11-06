@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 0.1.0
 
 ### Added
 - Symfony 6 and 7.4 support for the Composer configuration script and the console command's plain-variable flow.
@@ -23,5 +23,3 @@
 ### Scope
 - RSA generation, SSL certificate generation, file propagation, path resolution and value-formatting enhancements are deferred. Their existing behavior is retained; RSA and SSL generation still use the legacy Process API and are not covered by the Symfony 6/7 support claim above.
 - Dependency conflict constraints exclude affected Symfony Process 5, 6 and 7.4 releases. They do not adapt the optional generation extensions to the newer Process API.
-
-[Unreleased]: https://github.com/paysera/fork-sroze-companienv/compare/0.0.12...HEAD
