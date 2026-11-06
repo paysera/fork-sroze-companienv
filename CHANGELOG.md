@@ -16,7 +16,7 @@
 ### Fixed
 - The console command declares an integer exit status for Symfony 7 and returns a successful status after writing configuration on Symfony 5 and later.
 - Non-interactive console runs accept empty defaults instead of repeatedly asking the question.
-- Both interactions throw `Companienv\IO\UnansweredQuestionException` for a non-interactive question without a default. Interactive questions with no answer are asked again.
+- Both interactions throw `Companienv\IO\UnansweredQuestionException` for a non-interactive question without a default, and its message names the question. Interactive questions with no answer are asked again.
 - Writing configuration passes an empty comment to dotenv-editor, avoiding PHP 8.1+ null-argument deprecations.
 - Explicit nullable parameters avoid PHP 8.4 deprecations, including in the default extension classes loaded by the Composer script.
 

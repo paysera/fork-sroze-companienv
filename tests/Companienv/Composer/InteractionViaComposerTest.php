@@ -149,9 +149,10 @@ final class InteractionViaComposerTest extends TestCase
             'answers' => '',
             'act' => $askWithoutDefault,
             'expectedResult' => [
-                UnansweredQuestionException::class => 'Cannot answer a question without a default in non-interactive mode.',
+                UnansweredQuestionException::class => 'Cannot answer "MY_VARIABLE ?" in non-interactive mode: '
+                    . 'the question has no default.',
             ],
-            'expectedOutput' => "MY_VARIABLE ? \n",
+            'expectedOutput' => '',
         ];
 
         yield 'non-interactive empty default' => [

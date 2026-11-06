@@ -30,9 +30,7 @@ class InteractionViaComposer implements Interaction
     {
         if (!$this->io->isInteractive()) {
             if ($default === null) {
-                $this->writeln($question);
-
-                throw new UnansweredQuestionException();
+                throw new UnansweredQuestionException($question);
             }
 
             $this->writeln(sprintf('Automatically returned "%s" in non-interactive mode', $default));
