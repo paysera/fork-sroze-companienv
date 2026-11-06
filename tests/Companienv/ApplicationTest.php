@@ -118,7 +118,7 @@ final class ApplicationTest extends TestCase
         $exitCode = $application->run($input, $output);
 
         $this->assertSame(
-            ['exit code' => 0, 'output' => "Companienv 0.1.x-dev\n"],
+            ['exit code' => 0, 'output' => "Companienv 0.2.x-dev\n"],
             ['exit code' => $exitCode, 'output' => $output->fetch()]
         );
     }

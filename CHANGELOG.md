@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## 0.2.0
 
 ### Changed
 - **BREAKING:** `Companienv\IO\UnansweredQuestionException::__construct()` requires the question. Code that throws this exception must pass it; code that catches it is unaffected.
