@@ -8,7 +8,9 @@ use Companienv\DotEnv\Block;
 use Companienv\DotEnv\Variable;
 use Companienv\Extension\AbstractExtension;
 use Companienv\Interaction\AskVariableValues;
+use Companienv\IO\UnansweredQuestionException;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -116,7 +118,7 @@ final class ApplicationTest extends TestCase
         $exitCode = $application->run($input, $output);
 
         $this->assertSame(
-            ['exit code' => 0, 'output' => "Companienv 0.1.x-dev\n"],
+            ['exit code' => 0, 'output' => "Companienv 0.2.x-dev\n"],
             ['exit code' => $exitCode, 'output' => $output->fetch()]
         );
     }
@@ -204,6 +206,36 @@ final class ApplicationTest extends TestCase
         $this->assertSame(
             ['exit code' => 0, 'files' => ['.env' => $distFile, '.env.dist' => $distFile]],
             ['exit code' => $exitCode, 'files' => $this->readTemporaryDirectory()]
+        );
+    }
+
+    public function testRunWithoutInteractionNamesTheUnansweredQuestionInQuietOutput(): void
+    {
+        file_put_contents(
+            $this->temporaryDirectory . '/.env.dist',
+            "## Keys\n#+rsa-pair(KEY_PATH PUB_PATH KEY_PASS)\nKEY_PATH=private.pem\nPUB_PATH=public.pem\nKEY_PASS=\n"
+        );
+        $application = new Application($this->temporaryDirectory);
+        $application->setAutoExit(false);
+        $application->setCatchExceptions(false);
+        $input = new ArrayInput(['--no-interaction' => true]);
+        $output = new BufferedOutput(OutputInterface::VERBOSITY_QUIET);
+
+        try {
+            $result = $application->run($input, $output);
+        } catch (RuntimeException $exception) {
+            $result = [get_class($exception) => $exception->getMessage()];
+        }
+
+        $this->assertSame(
+            [
+                'result' => [
+                    UnansweredQuestionException::class => 'Cannot answer "Enter pass phrase to protect the keys:" '
+                        . 'in non-interactive mode: the question has no default.',
+                ],
+                'output' => '',
+            ],
+            ['result' => $result, 'output' => $output->fetch()]
         );
     }
 

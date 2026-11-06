@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Companienv\IO;
 
 use RuntimeException;
@@ -42,7 +44,7 @@ class InMemoryInteraction implements Interaction
 
         if (!$this->interactive) {
             if ($default === null) {
-                throw new UnansweredQuestionException();
+                throw new UnansweredQuestionException($question);
             }
 
             return $default;

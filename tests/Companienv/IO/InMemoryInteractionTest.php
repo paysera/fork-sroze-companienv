@@ -44,7 +44,8 @@ final class InMemoryInteractionTest extends TestCase
     {
         $noAnswer = [RuntimeException::class => 'No answer for question "Question?"'];
         $unanswered = [
-            UnansweredQuestionException::class => 'Cannot answer a question without a default in non-interactive mode.',
+            UnansweredQuestionException::class => 'Cannot answer "Question?" in non-interactive mode: '
+                . 'the question has no default.',
         ];
 
         yield 'one answer' => [

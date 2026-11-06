@@ -27,9 +27,7 @@ class InputOutputInteraction implements Interaction
     {
         if (!$this->input->isInteractive()) {
             if ($default === null) {
-                $this->writeln($question);
-
-                throw new UnansweredQuestionException();
+                throw new UnansweredQuestionException($question);
             }
 
             return $default;
